@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "atomic-no-delegation",
+      "scenario": "A single indivisible edit has no independently verifiable subtask.",
+      "input": {
+        "work_units": 1,
+        "independent_units": 0,
+        "risk": "ordinary"
+      },
+      "expected": {
+        "delegate": false,
+        "reason": "Do not split an atomic task merely to create parallel work."
+      }
+    },
+    {
+      "id": "independent-two-plus-parallel",
+      "scenario": "Three work units can start immediately and have separate completion criteria.",
+      "input": {
+        "work_units": 3,
+        "independent_units": 3,
+        "available_slots": 3
+      },
+      "expected": {
+        "delegate": true,
+        "main_keeps_units": 1,
+        "parallel_subagents": 2
+      }
+    },
+    {
+      "id": "dependency-order",
+      "scenario": "Implementation cannot begin until schema discovery supplies its interface.",
+      "input": {
+        "dependency_graph": [
+          "discover-schema -> implement-consumer"
+        ]
+      },
+      "expected": {
+        "execution": "sequential",
+        "first": "discover-schema",
+        "then": "implement-consumer"
+      }
+    },
+    {
+      "id": "shared-write-ownership",
+      "scenario": "Two otherwise independent tasks would edit the same tracked file.",
+      "input": {
+        "shared_write_target": "src/router.ts",
+        "agents": 2
+      },
+      "expected": {
+        "parallel_writes": false,
+        "coordination": "Assign one writer or sequence edits, then integrate once."
+      }
+    },
+    {
+      "id": "slot-shortage-reuse",
+      "scenario": "More independent tasks exist than available agent slots.",
+      "input": {
+        "independent_units": 5,
+        "available_subagent_slots": 2
+      },
+      "expected": {
+        "initial_subagents": 2,
+        "coordination": "Queue remaining units and reuse a completed agent with a newly scoped assignment."
+      }
+    },
+    {
+      "id": "high-risk-independent-audit",
+      "scenario": "A schema migration can cause irreversible data loss.",
+      "input": {
+        "risk": "high",
+        "risk_domains": [
+          "data-loss",
+          "schema-migration"
+        ]
+      },
+      "expected": {
+        "implementation_agent": "assigned",
+        "audit_agent": "separate",
+        "completion_requires_audit": true
+      }
+    },
+    {
+      "id": "plan-readonly",
+      "scenario": "The parent is in Plan Mode and the user requested architecture analysis only.",
+      "input": {
+        "mode": "plan",
+        "authorization": "read-only"
+      },
+      "expected": {
+        "subagent_mutation": false,
+        "allowed_work": "inspection-and-analysis"
+      }
+    },
+    {
+      "id": "fork-override",
+      "scenario": "A delegated task needs a model and reasoning override.",
+      "input": {
+        "fork_turns": "all",
+        "model_override": "requested",
+        "reasoning_override": "requested"
+      },
+      "expected": {
+        "valid_combination": false,
+        "correction": "Use fork_turns none or a positive recent-turn count and include the necessary context."
+      }
+    },
+    {
+      "id": "unsupported-model-fallback",
+      "scenario": "The preferred profile model is unavailable in the current tool schema.",
+      "input": {
+        "preferred_model_supported": false,
+        "task_profile": "general-code-analysis"
+      },
+      "expected": {
+        "invent_support": false,
+        "fallback": "Choose a supported model by task characteristics and preserve required capability and reasoning level."
+      }
+    }
+  ]
+}
