@@ -3,7 +3,7 @@ name: coordinate-subagents
 description: Coordinate Codex subagents by decomposing multi-part work, delegating independent units, assigning ownership, integrating evidence, and requiring separate audits for high-risk changes. Use when the user requests delegation or parallel agents, when work has two or more independently executable units, or when high-risk work needs an independent audit. Do not activate implicitly for ordinary atomic work; an explicit user request for delegation or independent review still applies.
 license: MIT
 metadata:
-  version: "0.1.1"
+  version: "0.1.2"
 ---
 
 # Coordinate Subagents
@@ -36,6 +36,16 @@ Delegate when any of these conditions holds:
 <!-- policy-contract: delegation.allowed-exceptions -->
 
 Keep ordinary atomic work local unless the user explicitly requests delegation or independent review. When delegation is otherwise required, the only exceptions are that every remaining unit depends on prior output, the same file or state requires exclusive access, or collaboration slots, tools, or permissions are unavailable. State the concrete exception. Task size, coordinator convenience, handoff cost, or token cost alone are not valid exceptions, and no exception waives a required high-risk audit.
+
+## Resolve the delegation preference
+
+<!-- policy-contract: preferences.ask-once -->
+
+At the first point in each task when delegation will occur, check whether the user or host already supplied a delegation preference. If no preference exists and choosing among the bundled profiles would materially affect agent count, batching, model selection, or reasoning effort, ask one short optional question offering `balanced` (recommended), `economy`, and `quality`. Ask at most once per task. Do not ask when a preference is already available or the choice would not materially affect execution.
+
+Continue safe preparation while an answer is pending. If no answer is available before dispatch or the host cannot ask, use `balanced` and proceed. Never infer a subscription plan from model availability or usage observations; use plan details only when the user or host provides them. A preference may tune allocation and supported runtime settings, but it never expands authority or waives required independent audits.
+
+Read [the optional model-routing profile](references/model-routing.md) for the profile definitions.
 
 ## Assign work
 

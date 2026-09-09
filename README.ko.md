@@ -29,10 +29,10 @@ $skill-installer install https://github.com/jaeseongs95/coordinate-subagents/tre
 
 위 내용은 셸 명령어가 아니라 Codex 프롬프트로 입력합니다.
 
-현재 릴리스인 `v0.1.1`로 고정하려면 다음과 같이 설치합니다.
+현재 릴리스인 `v0.1.2`로 고정하려면 다음과 같이 설치합니다.
 
 ```text
-$skill-installer install https://github.com/jaeseongs95/coordinate-subagents/tree/v0.1.1/skills/coordinate-subagents
+$skill-installer install https://github.com/jaeseongs95/coordinate-subagents/tree/v0.1.2/skills/coordinate-subagents
 ```
 
 Codex는 새로 설치한 스킬을 보통 자동으로 감지합니다. 목록에 나타나지 않으면 Codex를 다시 시작하세요. 로컬 설치와 스킬 탐색 방식은 [OpenAI 공식 스킬 문서](https://learn.chatgpt.com/docs/build-skills)에서 확인할 수 있습니다.

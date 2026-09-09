@@ -6,6 +6,7 @@
     "delegation.explicit-request": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Decide whether to delegate"},
     "delegation.independent-parallel": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Decide whether to delegate"},
     "delegation.allowed-exceptions": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Decide whether to delegate"},
+    "preferences.ask-once": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Resolve the delegation preference"},
     "allocation.keep-one-and-fill-slots": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Assign work"},
     "allocation.batch-reuse": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Assign work"},
     "allocation.explicit-single-delegation-playbook": {"source": "skills/coordinate-subagents/references/delegation-playbook.md", "section": "Batch and synchronize"},
@@ -45,6 +46,20 @@
       "rule": "explicit-atomic-allocation",
       "vectors": [
         {"id": "delegate-only-unit", "input": {"explicit_request": true, "atomic_units": 1, "available_subagent_slots": 1}, "expected": {"delegate": true, "coordinator_units": 0, "active_subagents": 1, "coordinator_role": "coordination-and-evidence-review"}}
+      ]
+    },
+    {
+      "id": "preference-resolution",
+      "scenario": "The first material delegation choice offers an optional profile once, respects an existing preference, and defaults safely without inferring a subscription plan.",
+      "contracts": ["preferences.ask-once", "audit.independent-required"],
+      "rule": "preference-resolution",
+      "vectors": [
+        {"id": "ask-once-and-use-answer", "input": {"supplied_preference": null, "material_effect": true, "host_can_ask": true, "already_asked": false, "response": "economy"}, "expected": {"ask_optional_question": true, "profile": "economy", "proceed_to_dispatch": true, "infer_subscription_plan": false, "waive_required_audit": false}},
+        {"id": "respect-existing-preference", "input": {"supplied_preference": "quality", "material_effect": true, "host_can_ask": true, "already_asked": false, "response": null}, "expected": {"ask_optional_question": false, "profile": "quality", "proceed_to_dispatch": true, "infer_subscription_plan": false, "waive_required_audit": false}},
+        {"id": "default-when-host-cannot-ask", "input": {"supplied_preference": null, "material_effect": true, "host_can_ask": false, "already_asked": false, "response": null}, "expected": {"ask_optional_question": false, "profile": "balanced", "proceed_to_dispatch": true, "infer_subscription_plan": false, "waive_required_audit": false}},
+        {"id": "default-after-unanswered-question", "input": {"supplied_preference": null, "material_effect": true, "host_can_ask": true, "already_asked": false, "response": null}, "expected": {"ask_optional_question": true, "profile": "balanced", "proceed_to_dispatch": true, "infer_subscription_plan": false, "waive_required_audit": false}},
+        {"id": "do-not-repeat-question", "input": {"supplied_preference": null, "material_effect": true, "host_can_ask": true, "already_asked": true, "response": null}, "expected": {"ask_optional_question": false, "profile": "balanced", "proceed_to_dispatch": true, "infer_subscription_plan": false, "waive_required_audit": false}},
+        {"id": "skip-immaterial-choice", "input": {"supplied_preference": null, "material_effect": false, "host_can_ask": true, "already_asked": false, "response": null}, "expected": {"ask_optional_question": false, "profile": "balanced", "proceed_to_dispatch": true, "infer_subscription_plan": false, "waive_required_audit": false}}
       ]
     },
     {

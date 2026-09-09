@@ -12,7 +12,7 @@ from urllib.parse import unquote
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SKILL_ROOT = REPO_ROOT / "skills" / "coordinate-subagents"
-EXPECTED_VERSION = "0.1.1"
+EXPECTED_VERSION = "0.1.2"
 OFFICIAL_FRONTMATTER_KEYS = {
     "name",
     "description",
@@ -33,6 +33,7 @@ EXPECTED_CASE_IDS = {
     "slot-shortage-reuse",
     "high-risk-independent-audit",
     "plan-readonly",
+    "preference-resolution",
     "fork-override",
     "unsupported-model-fallback",
 }
@@ -52,6 +53,14 @@ POLICY_REQUIRED_CLAUSES = {
     "delegation.allowed-exceptions": (
         "When delegation is otherwise required, the only exceptions are that every remaining unit depends on prior output, the same file or state requires exclusive access, or collaboration slots, tools, or permissions are unavailable.",
         "Task size, coordinator convenience, handoff cost, or token cost alone are not valid exceptions, and no exception waives a required high-risk audit.",
+    ),
+    "preferences.ask-once": (
+        "At the first point in each task when delegation will occur, check whether the user or host already supplied a delegation preference.",
+        "If no preference exists and choosing among the bundled profiles would materially affect agent count, batching, model selection, or reasoning effort, ask one short optional question offering `balanced` (recommended), `economy`, and `quality`.",
+        "Ask at most once per task.",
+        "If no answer is available before dispatch or the host cannot ask, use `balanced` and proceed.",
+        "Never infer a subscription plan from model availability or usage observations; use plan details only when the user or host provides them.",
+        "A preference may tune allocation and supported runtime settings, but it never expands authority or waives required independent audits.",
     ),
     "allocation.keep-one-and-fill-slots": (
         "When two or more implementation units exist, keep one independent unit with the coordinator and assign the others across available slots.",
@@ -651,6 +660,29 @@ def evaluate_fork_override(inputs: dict[str, object]) -> dict[str, object]:
     }
 
 
+def evaluate_preference_resolution(inputs: dict[str, object]) -> dict[str, object]:
+    supplied = inputs.get("supplied_preference")
+    valid_profiles = {"balanced", "economy", "quality"}
+    supplied_valid = supplied in valid_profiles
+    material = inputs.get("material_effect") is True
+    host_can_ask = inputs.get("host_can_ask") is True
+    already_asked = inputs.get("already_asked") is True
+    ask = not supplied_valid and material and host_can_ask and not already_asked
+    response = inputs.get("response")
+    profile = str(response) if ask and response in valid_profiles else None
+    if supplied_valid:
+        profile = str(supplied)
+    if profile is None:
+        profile = "balanced"
+    return {
+        "ask_optional_question": ask,
+        "profile": profile,
+        "proceed_to_dispatch": True,
+        "infer_subscription_plan": False,
+        "waive_required_audit": False,
+    }
+
+
 def evaluate_model_policy(inputs: dict[str, object]) -> dict[str, object]:
     action = inputs.get("action")
     if action == "fallback":
@@ -725,6 +757,7 @@ BEHAVIOR_EVALUATORS = {
     "dispatch-recovery": evaluate_dispatch_recovery,
     "audit-gate": evaluate_audit_gate,
     "mutation-boundary": evaluate_mutation_boundary,
+    "preference-resolution": evaluate_preference_resolution,
     "fork-override": evaluate_fork_override,
     "model-policy": evaluate_model_policy,
     "completion-gate": evaluate_completion_gate,

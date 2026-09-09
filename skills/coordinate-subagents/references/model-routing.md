@@ -2,7 +2,15 @@
 
 This profile supplies portable defaults for hosts that expose the listed models. It is a preference profile, not a compatibility requirement. Explicit user choices, higher-priority instructions, current tool schemas, and host availability take precedence.
 
-Read this file only when selecting a model or reasoning override for a delegated unit. Delegation itself must continue with a supported inherited configuration when the preferred override is unavailable.
+Read this file when resolving a delegation preference or selecting a model or reasoning override for a delegated unit. Delegation itself must continue with a supported inherited configuration when the preferred override is unavailable.
+
+## Choose a delegation profile
+
+- `balanced` is the default. Follow the core allocation policy and choose model strength and reasoning effort in proportion to complexity, failure impact, and verification cost.
+- `economy` uses the minimum subagent count compatible with the user's delegation request and any mandatory independent audit. Batch optional work where practical and prefer lighter supported models, while preserving acceptance criteria and verification.
+- `quality` uses available safe concurrency and selects stronger supported models or higher reasoning only where complexity, failure impact, or independent review value justifies the added cost.
+
+Treat a user-supplied subscription plan as context for these choices, not as proof that a particular model, usage allowance, or runtime control is available. Inspect the current host capabilities before applying the profile. No profile changes permissions, risk controls, write ownership, or completion criteria.
 
 ## Choose from task characteristics
 
