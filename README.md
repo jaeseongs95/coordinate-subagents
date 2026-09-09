@@ -29,10 +29,10 @@ $skill-installer install https://github.com/jaeseongs95/coordinate-subagents/tre
 
 Enter this as a Codex prompt, not as a shell command.
 
-To pin the installation after `v0.1.0` is published:
+To pin the current `v0.1.1` release:
 
 ```text
-$skill-installer install https://github.com/jaeseongs95/coordinate-subagents/tree/v0.1.0/skills/coordinate-subagents
+$skill-installer install https://github.com/jaeseongs95/coordinate-subagents/tree/v0.1.1/skills/coordinate-subagents
 ```
 
 Codex normally detects newly installed skills automatically. Restart Codex if the skill does not appear. The [official OpenAI skill guide](https://learn.chatgpt.com/docs/build-skills) describes local skill installation and discovery.
@@ -48,6 +48,10 @@ $coordinate-subagents split this work into independent units, run the safe units
 The skill also allows implicit invocation. Codex may select it when a request clearly involves parallel delegation, ownership coordination, or an independent high-risk review. Implicit matching depends on the skill description and the host's current skill configuration.
 
 Installing or invoking this skill does not grant permissions, bypass approvals, expand the user's request, or make unavailable tools and models available. Every subagent remains subject to the same applicable user instructions, repository rules, execution mode, sandbox, permissions, and tool access.
+
+## Validation
+
+Run `python tests/validate_skill.py` before publishing. CI runs the same check on Ubuntu and Windows. It validates package metadata, links, licenses, UI metadata, unfinished scaffold markers and secret hygiene, policy-contract markers, and structured policy decision vectors. These deterministic checks verify the documented policy contract; they do not claim to make language-model behavior deterministic. Use an independent forward test and audit as release evidence for material behavior changes.
 
 ## Repository layout
 
@@ -83,7 +87,7 @@ coordinate-subagents/
 └── ...
 ```
 
-The current package intentionally does not include `plugin.json`; it distributes only the standalone `coordinate-subagents` skill. When multiple skills are ready, a portable manifest can be added at the repository root and the existing `skills/` tree can be packaged without moving the current skill. See the official OpenAI guides for [building skills](https://learn.chatgpt.com/docs/build-skills) and [packaging plugins](https://developers.openai.com/plugins/build/plugins).
+The current package intentionally does not include `plugin.json`; it distributes only the standalone `coordinate-subagents` skill. When multiple skills are ready, add the canonical portable `plugin.json` at the repository root and package the existing `skills/` tree without moving this skill. Do not treat the compatibility `.codex-plugin/plugin.json` format as the canonical portable manifest. See the official OpenAI guides for [building skills](https://learn.chatgpt.com/docs/build-skills) and [packaging plugins](https://developers.openai.com/plugins/build/plugins).
 
 ## License
 

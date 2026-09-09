@@ -1,9 +1,9 @@
 ---
 name: coordinate-subagents
-description: Coordinate Codex subagents by decomposing multi-part work, delegating independent units, assigning ownership, integrating evidence, and requiring separate audits for high-risk changes. Use when the user requests delegation or parallel agents, when work has two or more independently executable units, or when high-risk work needs an independent audit. Do not use for atomic work that does not need independent review.
+description: Coordinate Codex subagents by decomposing multi-part work, delegating independent units, assigning ownership, integrating evidence, and requiring separate audits for high-risk changes. Use when the user requests delegation or parallel agents, when work has two or more independently executable units, or when high-risk work needs an independent audit. Do not activate implicitly for ordinary atomic work; an explicit user request for delegation or independent review still applies.
 license: MIT
 metadata:
-  version: "0.1.0"
+  version: "0.1.1"
 ---
 
 # Coordinate Subagents
@@ -11,6 +11,8 @@ metadata:
 Coordinate work across subagents without expanding the user's scope, permissions, or requested side effects.
 
 ## Apply instruction priority
+
+<!-- policy-contract: authority.inherit-mode -->
 
 - Follow system, developer, user, repository, and mode constraints before this skill.
 - Treat delegation as a way to execute authorized work, never as new authorization.
@@ -23,15 +25,28 @@ At the start of a task, identify execution units and their dependencies. A unit 
 
 Delegate when any of these conditions holds:
 
+<!-- policy-contract: delegation.explicit-request -->
+<!-- policy-contract: delegation.independent-parallel -->
+
 - The user explicitly asks for subagents, delegation, or parallel work.
 - Two or more independent units exist.
 - A high-risk change requires an independent auditor.
 
-Keep atomic work local. Delegation may also be impossible when every remaining unit depends on prior output, the same file or state requires exclusive access, or collaboration slots, tools, or permissions are unavailable. If an independent unit is not delegated for one of these reasons, state the concrete reason. Task size, coordinator convenience, handoff cost, or token cost alone are not reasons to skip required delegation.
+<!-- policy-contract: delegation.atomic-local -->
+<!-- policy-contract: delegation.allowed-exceptions -->
+
+Keep ordinary atomic work local unless the user explicitly requests delegation or independent review. When delegation is otherwise required, the only exceptions are that every remaining unit depends on prior output, the same file or state requires exclusive access, or collaboration slots, tools, or permissions are unavailable. State the concrete exception. Task size, coordinator convenience, handoff cost, or token cost alone are not valid exceptions, and no exception waives a required high-risk audit.
 
 ## Assign work
 
-Keep one independent unit with the coordinator and assign the others across available slots. Interpret slot counts from the host contract: when the host reports a total team capacity, the coordinator occupies one slot; when it reports subagent slots, those are all available to delegated work. When independent units exceed the usable slot count, run them in batches and reuse completed subagents with a fresh brief. Do not create artificial units merely to increase parallelism.
+<!-- policy-contract: allocation.keep-one-and-fill-slots -->
+<!-- policy-contract: allocation.batch-reuse -->
+
+When two or more implementation units exist, keep one independent unit with the coordinator and assign the others across available slots. If the user explicitly asks to delegate the only implementation unit, assign that unit to a subagent and keep coordination and evidence review with the coordinator. Interpret slot counts from the host contract: when the host reports a total team capacity, the coordinator occupies one slot; when it reports subagent slots, those are all available to delegated work. When independent units exceed the usable slot count, run them in batches and reuse completed subagents with a fresh brief. Do not create artificial units merely to increase parallelism.
+
+<!-- policy-contract: audit.reserve-identity -->
+
+When high-risk work requires an independent auditor and later access to a fresh agent identity is uncertain, reserve a non-implementing subagent and its slot before filling implementation assignments.
 
 Every brief must include:
 
@@ -42,11 +57,15 @@ Every brief must include:
 - the expected output;
 - completion and verification criteria.
 
-Give one writer ownership of each shared file or external state. Sequence work when ownership cannot be separated safely. A subagent owns implementation and verification inside its assigned scope and must coordinate before changing another owner's area.
+<!-- policy-contract: ownership.single-writer -->
+
+Give one writer ownership of each shared file or external state. Sequence work when ownership cannot be separated safely. A subagent owns investigation, implementation, deliverable preparation, and verification inside its assigned scope and must coordinate before changing another owner's area.
 
 Read [the delegation playbook](references/delegation-playbook.md) when preparing briefs, batching work, resolving ownership conflicts, handling failed dispatch, or running an audit.
 
 ## Coordinate and integrate
+
+<!-- policy-contract: integration.no-redo -->
 
 - Track each assignment and collect its output and verification evidence.
 - Use follow-up messages to refine an existing assignment instead of silently duplicating it.
@@ -56,9 +75,18 @@ Read [the delegation playbook](references/delegation-playbook.md) when preparing
 
 ## Require independent audits for high-risk work
 
+<!-- policy-contract: audit.independent-required -->
+
 Treat security, permissions, payments, data loss, schema migrations, deployments, and global configuration changes as high risk. Assign an auditor who did not implement the change. The auditor must inspect the requirements, final change, verification evidence, and plausible failure modes directly.
 
-Do not report high-risk work as complete without an available independent auditor and resolved findings. If the audited area changes afterward, re-audit the affected portion. For deployments, audit readiness before execution and audit the resulting deployment evidence afterward.
+<!-- policy-contract: audit.no-completion-without-auditor -->
+<!-- policy-contract: audit.reaudit-after-change -->
+
+Do not report high-risk work as complete without an available independent auditor and resolved findings. If no auditor is available, state the limitation and do not claim that an independent audit occurred. If the audited area changes afterward, re-audit the affected portion. For deployments, audit readiness before execution and audit the resulting deployment evidence afterward.
+
+<!-- policy-contract: audit.finding-disposition -->
+
+Resolve each audit finding by fixing it, disproving it with evidence, or recording risk acceptance from an authorized decision-maker when higher-priority policy permits that outcome. Deferral alone does not resolve a finding.
 
 ## Select models only when useful
 
@@ -68,8 +96,14 @@ Read [the optional model-routing profile](references/model-routing.md) before ch
 
 Before reporting completion:
 
+<!-- policy-contract: completion.current-evidence -->
+<!-- policy-contract: completion.report-facts -->
+
 - account for every assignment;
-- verify each requirement against the current state;
+- confirm that each subagent's scoped verification actually passed;
+- verify each requirement against current evidence with checks proportional to its failure impact;
+- avoid checks that merely repeat the implementation, and reverify only the affected scope when a later change invalidates earlier evidence;
 - integrate accepted results without overwriting unrelated user work;
 - complete required independent audits and resolve their findings;
-- report the result, material changes, checks actually run, their outcomes, and remaining constraints.
+- report the result, material changes, checks actually run, their outcomes, and remaining constraints;
+- never present an unrun check or unverified setting as completed.

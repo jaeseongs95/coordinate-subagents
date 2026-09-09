@@ -38,8 +38,14 @@ When reusing a completed agent, send a complete new brief. Do not assume the old
 
 ## Batch and synchronize
 
-- Keep one useful unit with the coordinator while other independent units run.
+<!-- policy-contract: allocation.explicit-single-delegation-playbook -->
+
+- Keep one useful implementation unit with the coordinator when two or more implementation units exist. If the user explicitly delegates the only implementation unit, give it to the subagent and keep coordination and evidence review with the coordinator.
 - Interpret the host's slot contract before allocating work. A reported total team capacity includes the coordinator unless the host says otherwise; a reported subagent count does not.
+
+<!-- policy-contract: audit.reserve-identity-playbook -->
+
+- When a required high-risk audit may not have access to a fresh identity later, reserve a non-implementing subagent and slot before assigning all implementation work.
 - Fill only currently available subagent slots after that calculation.
 - If more units remain, queue the next independent batch and reuse completed agents.
 - Use a single writer for shared files. Other agents return proposed changes or evidence to that writer.
@@ -47,6 +53,8 @@ When reusing a completed agent, send a complete new brief. Do not assume the old
 - Do not ask multiple agents to solve the same unit unless independent comparison or audit is the stated purpose.
 
 ## Recover from dispatch problems
+
+<!-- policy-contract: dispatch.inspect-and-recover -->
 
 If a spawn or dispatch fails, inspect agent status before deciding what happened. Then choose the narrowest applicable recovery:
 

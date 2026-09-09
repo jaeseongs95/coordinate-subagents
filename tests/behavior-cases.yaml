@@ -1,123 +1,186 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
+  "policy_contracts": {
+    "authority.inherit-mode": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Apply instruction priority"},
+    "delegation.atomic-local": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Decide whether to delegate"},
+    "delegation.explicit-request": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Decide whether to delegate"},
+    "delegation.independent-parallel": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Decide whether to delegate"},
+    "delegation.allowed-exceptions": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Decide whether to delegate"},
+    "allocation.keep-one-and-fill-slots": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Assign work"},
+    "allocation.batch-reuse": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Assign work"},
+    "allocation.explicit-single-delegation-playbook": {"source": "skills/coordinate-subagents/references/delegation-playbook.md", "section": "Batch and synchronize"},
+    "ownership.single-writer": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Assign work"},
+    "integration.no-redo": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Coordinate and integrate"},
+    "audit.independent-required": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Require independent audits for high-risk work"},
+    "audit.reserve-identity": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Assign work"},
+    "audit.reserve-identity-playbook": {"source": "skills/coordinate-subagents/references/delegation-playbook.md", "section": "Batch and synchronize"},
+    "audit.no-completion-without-auditor": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Require independent audits for high-risk work"},
+    "audit.reaudit-after-change": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Require independent audits for high-risk work"},
+    "audit.finding-disposition": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Require independent audits for high-risk work"},
+    "completion.current-evidence": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Complete the task"},
+    "completion.report-facts": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Complete the task"},
+    "dispatch.inspect-and-recover": {"source": "skills/coordinate-subagents/references/delegation-playbook.md", "section": "Recover from dispatch problems"},
+    "routing.settings-supported": {"source": "skills/coordinate-subagents/references/model-routing.md", "section": "Apply runtime constraints"},
+    "routing.luna-high-minimum": {"source": "skills/coordinate-subagents/references/model-routing.md", "section": "Apply runtime constraints"},
+    "routing.full-history-inherits": {"source": "skills/coordinate-subagents/references/model-routing.md", "section": "Apply runtime constraints"},
+    "routing.unsupported-fallback": {"source": "skills/coordinate-subagents/references/model-routing.md", "section": "Apply runtime constraints"},
+    "routing.no-mechanical-retry": {"source": "skills/coordinate-subagents/references/model-routing.md", "section": "Diagnose before retrying"}
+  },
   "cases": [
     {
       "id": "atomic-no-delegation",
-      "scenario": "A single indivisible edit has no independently verifiable subtask.",
-      "input": {
-        "work_units": 1,
-        "independent_units": 0,
-        "risk": "ordinary"
-      },
-      "expected": {
-        "delegate": false,
-        "reason": "Do not split an atomic task merely to create parallel work."
-      }
+      "scenario": "Ordinary atomic work stays local unless the user explicitly requests delegation or review.",
+      "contracts": ["delegation.atomic-local", "delegation.explicit-request"],
+      "rule": "delegation-trigger",
+      "vectors": [
+        {"id": "implicit-atomic", "input": {"explicit_request": false, "independent_units": 0, "high_risk": false}, "expected": {"delegate": false, "trigger": "none"}},
+        {"id": "explicit-atomic", "input": {"explicit_request": true, "independent_units": 0, "high_risk": false}, "expected": {"delegate": true, "trigger": "explicit-user-request"}},
+        {"id": "high-risk-audit-trigger", "input": {"explicit_request": false, "independent_units": 1, "high_risk": true}, "expected": {"delegate": true, "trigger": "high-risk-audit"}}
+      ]
+    },
+    {
+      "id": "explicit-atomic-allocation",
+      "scenario": "A user's explicit request delegates the only atomic unit while the coordinator reviews evidence.",
+      "contracts": ["delegation.atomic-local", "delegation.explicit-request", "allocation.keep-one-and-fill-slots", "allocation.explicit-single-delegation-playbook"],
+      "rule": "explicit-atomic-allocation",
+      "vectors": [
+        {"id": "delegate-only-unit", "input": {"explicit_request": true, "atomic_units": 1, "available_subagent_slots": 1}, "expected": {"delegate": true, "coordinator_units": 0, "active_subagents": 1, "coordinator_role": "coordination-and-evidence-review"}}
+      ]
     },
     {
       "id": "independent-two-plus-parallel",
-      "scenario": "Three work units can start immediately and have separate completion criteria.",
-      "input": {
-        "work_units": 3,
-        "independent_units": 3,
-        "available_slots": 3
-      },
-      "expected": {
-        "delegate": true,
-        "main_keeps_units": 1,
-        "parallel_subagents": 2
-      }
+      "scenario": "Two or more independent units trigger delegation while the coordinator keeps one unit.",
+      "contracts": ["delegation.independent-parallel", "allocation.keep-one-and-fill-slots"],
+      "rule": "parallel-allocation",
+      "vectors": [
+        {"id": "team-capacity-includes-coordinator", "input": {"independent_units": 3, "slot_kind": "team-capacity", "slot_count": 3}, "expected": {"delegate": true, "coordinator_units": 1, "active_subagents": 2, "queued_units": 0, "reuse_completed_agent": false}},
+        {"id": "subagent-slots-exclude-coordinator", "input": {"independent_units": 2, "slot_kind": "subagent-slots", "slot_count": 3}, "expected": {"delegate": true, "coordinator_units": 1, "active_subagents": 1, "queued_units": 0, "reuse_completed_agent": false}}
+      ]
     },
     {
       "id": "dependency-order",
-      "scenario": "Implementation cannot begin until schema discovery supplies its interface.",
-      "input": {
-        "dependency_graph": [
-          "discover-schema -> implement-consumer"
-        ]
-      },
-      "expected": {
-        "execution": "sequential",
-        "first": "discover-schema",
-        "then": "implement-consumer"
-      }
+      "scenario": "A dependent unit waits for its prerequisite while unrelated work may still run.",
+      "contracts": ["delegation.allowed-exceptions"],
+      "rule": "dependency-schedule",
+      "vectors": [
+        {"id": "dependent-pair", "input": {"has_dependency": true, "independent_sibling": false}, "expected": {"dependent_parallel": false, "independent_sibling_parallel": false, "execution": "sequential"}},
+        {"id": "unrelated-sibling", "input": {"has_dependency": true, "independent_sibling": true}, "expected": {"dependent_parallel": false, "independent_sibling_parallel": true, "execution": "mixed"}}
+      ]
     },
     {
       "id": "shared-write-ownership",
-      "scenario": "Two otherwise independent tasks would edit the same tracked file.",
-      "input": {
-        "shared_write_target": "src/router.ts",
-        "agents": 2
-      },
-      "expected": {
-        "parallel_writes": false,
-        "coordination": "Assign one writer or sequence edits, then integrate once."
-      }
+      "scenario": "Concurrent writes to one target require a single writer; shared reads do not.",
+      "contracts": ["ownership.single-writer"],
+      "rule": "shared-state",
+      "vectors": [
+        {"id": "same-target-write", "input": {"same_target": true, "access": "write"}, "expected": {"concurrent_access": false, "single_writer_required": true}},
+        {"id": "same-target-read", "input": {"same_target": true, "access": "read"}, "expected": {"concurrent_access": true, "single_writer_required": false}}
+      ]
     },
     {
       "id": "slot-shortage-reuse",
-      "scenario": "More independent tasks exist than available agent slots.",
-      "input": {
-        "independent_units": 5,
-        "available_subagent_slots": 2
-      },
-      "expected": {
-        "initial_subagents": 2,
-        "coordination": "Queue remaining units and reuse a completed agent with a newly scoped assignment."
-      }
+      "scenario": "Excess independent units are queued and assigned through later batches.",
+      "contracts": ["allocation.keep-one-and-fill-slots", "allocation.batch-reuse"],
+      "rule": "parallel-allocation",
+      "vectors": [
+        {"id": "queue-and-reuse", "input": {"independent_units": 5, "slot_kind": "subagent-slots", "slot_count": 2}, "expected": {"delegate": true, "coordinator_units": 1, "active_subagents": 2, "queued_units": 2, "reuse_completed_agent": true}}
+      ]
+    },
+    {
+      "id": "delegation-exception-boundary",
+      "scenario": "Only the closed exception list can prevent required delegation, and high-risk audit remains mandatory.",
+      "contracts": ["delegation.allowed-exceptions", "audit.independent-required"],
+      "rule": "delegation-exception",
+      "vectors": [
+        {"id": "permission-unavailable", "input": {"reason": "permissions", "all_remaining_blocked": true, "high_risk": true}, "expected": {"exception_allowed": true, "disclose_reason": true, "high_risk_audit_waived": false}},
+        {"id": "task-size-not-exception", "input": {"reason": "task-size", "all_remaining_blocked": true, "high_risk": false}, "expected": {"exception_allowed": false, "disclose_reason": false, "high_risk_audit_waived": false}}
+      ]
+    },
+    {
+      "id": "audit-slot-reservation",
+      "scenario": "A non-implementing identity is reserved when a required later audit might otherwise be impossible.",
+      "contracts": ["audit.independent-required", "audit.reserve-identity", "audit.reserve-identity-playbook", "allocation.keep-one-and-fill-slots"],
+      "rule": "audit-slot-reservation",
+      "vectors": [
+        {"id": "reserve-before-implementation", "input": {"available_subagent_slots": 2, "subagent_implementation_units": 2, "audit_required": true, "fresh_identity_later_uncertain": true}, "expected": {"reserved_auditor_slots": 1, "active_implementation_subagents": 1, "queued_implementation_units": 1}},
+        {"id": "ordinary-work-uses-slots", "input": {"available_subagent_slots": 2, "subagent_implementation_units": 2, "audit_required": false, "fresh_identity_later_uncertain": true}, "expected": {"reserved_auditor_slots": 0, "active_implementation_subagents": 2, "queued_implementation_units": 0}}
+      ]
+    },
+    {
+      "id": "dispatch-recovery",
+      "scenario": "A failed dispatch is inspected before retry, reuse, or batching.",
+      "contracts": ["dispatch.inspect-and-recover"],
+      "rule": "dispatch-recovery",
+      "vectors": [
+        {"id": "transient", "input": {"status": "transient"}, "expected": {"inspect_status_first": true, "action": "retry-once"}},
+        {"id": "idle-agent", "input": {"status": "idle-agent-available"}, "expected": {"inspect_status_first": true, "action": "reuse-with-fresh-brief"}},
+        {"id": "capacity-full", "input": {"status": "capacity-full"}, "expected": {"inspect_status_first": true, "action": "queue-next-batch"}},
+        {"id": "local-fallback", "input": {"status": "no-delegation-possible"}, "expected": {"inspect_status_first": true, "action": "keep-local-and-disclose"}}
+      ]
     },
     {
       "id": "high-risk-independent-audit",
-      "scenario": "A schema migration can cause irreversible data loss.",
-      "input": {
-        "risk": "high",
-        "risk_domains": [
-          "data-loss",
-          "schema-migration"
-        ]
-      },
-      "expected": {
-        "implementation_agent": "assigned",
-        "audit_agent": "separate",
-        "completion_requires_audit": true
-      }
+      "scenario": "High-risk work requires a separate auditor, resolved findings, and re-audit after change.",
+      "contracts": ["audit.independent-required", "audit.no-completion-without-auditor", "audit.reaudit-after-change", "audit.finding-disposition"],
+      "rule": "audit-gate",
+      "vectors": [
+        {"id": "all-risk-domains", "input": {"risk_domains": ["security", "permissions", "payments", "data-loss", "schema-migration", "deployment", "global-configuration"], "auditor_available": true, "implementers": ["coordinator", "builder"], "auditor": "reviewer", "findings": [{"disposition": "fixed"}], "changed_after_audit": false, "pre_audit_passed": true, "deployment_executed": true, "deployment_evidence_available": true, "post_audit_passed": true}, "expected": {"independent_audit_required": true, "auditor_independent": true, "findings_resolved": true, "ready_to_deploy": true, "complete": true, "reaudit_required": false, "pre_and_post_deployment_audit": true, "claim_independent_audit": true}},
+        {"id": "deployment-readiness-only", "input": {"risk_domains": ["deployment"], "auditor_available": true, "implementers": ["builder"], "auditor": "reviewer", "findings": [], "changed_after_audit": false, "pre_audit_passed": true, "deployment_executed": false, "deployment_evidence_available": false, "post_audit_passed": false}, "expected": {"independent_audit_required": true, "auditor_independent": true, "findings_resolved": true, "ready_to_deploy": true, "complete": false, "reaudit_required": false, "pre_and_post_deployment_audit": true, "claim_independent_audit": true}},
+        {"id": "deployment-awaiting-post-audit", "input": {"risk_domains": ["deployment"], "auditor_available": true, "implementers": ["builder"], "auditor": "reviewer", "findings": [], "changed_after_audit": false, "pre_audit_passed": true, "deployment_executed": true, "deployment_evidence_available": true, "post_audit_passed": false}, "expected": {"independent_audit_required": true, "auditor_independent": true, "findings_resolved": true, "ready_to_deploy": true, "complete": false, "reaudit_required": false, "pre_and_post_deployment_audit": true, "claim_independent_audit": true}},
+        {"id": "auditor-unavailable", "input": {"risk_domains": ["deployment"], "auditor_available": false, "implementers": ["builder"], "auditor": null, "findings": [], "changed_after_audit": false, "pre_audit_passed": true, "deployment_executed": false, "deployment_evidence_available": false, "post_audit_passed": false}, "expected": {"independent_audit_required": true, "auditor_independent": false, "findings_resolved": true, "ready_to_deploy": false, "complete": false, "reaudit_required": false, "pre_and_post_deployment_audit": true, "claim_independent_audit": false}},
+        {"id": "one-of-many-implementers-is-auditor", "input": {"risk_domains": ["security"], "auditor_available": true, "implementers": ["builder", "same-agent"], "auditor": "same-agent", "findings": [], "changed_after_audit": false}, "expected": {"independent_audit_required": true, "auditor_independent": false, "findings_resolved": true, "ready_to_deploy": false, "complete": false, "reaudit_required": false, "pre_and_post_deployment_audit": false, "claim_independent_audit": false}},
+        {"id": "unresolved-finding", "input": {"risk_domains": ["permissions"], "auditor_available": true, "implementers": ["builder"], "auditor": "reviewer", "findings": [{"disposition": "deferred"}], "changed_after_audit": false}, "expected": {"independent_audit_required": true, "auditor_independent": true, "findings_resolved": false, "ready_to_deploy": false, "complete": false, "reaudit_required": false, "pre_and_post_deployment_audit": false, "claim_independent_audit": true}},
+        {"id": "authorized-risk-acceptance", "input": {"risk_domains": ["payments"], "auditor_available": true, "implementers": ["builder"], "auditor": "reviewer", "findings": [{"disposition": "authorized-risk-acceptance", "authorization_present": true, "higher_priority_policy_permits": true}], "changed_after_audit": false}, "expected": {"independent_audit_required": true, "auditor_independent": true, "findings_resolved": true, "ready_to_deploy": false, "complete": true, "reaudit_required": false, "pre_and_post_deployment_audit": false, "claim_independent_audit": true}},
+        {"id": "unauthorized-risk-acceptance", "input": {"risk_domains": ["payments"], "auditor_available": true, "implementers": ["builder"], "auditor": "reviewer", "findings": [{"disposition": "authorized-risk-acceptance", "authorization_present": false, "higher_priority_policy_permits": true}], "changed_after_audit": false}, "expected": {"independent_audit_required": true, "auditor_independent": true, "findings_resolved": false, "ready_to_deploy": false, "complete": false, "reaudit_required": false, "pre_and_post_deployment_audit": false, "claim_independent_audit": true}},
+        {"id": "one-of-many-findings-deferred", "input": {"risk_domains": ["data-loss"], "auditor_available": true, "implementers": ["builder"], "auditor": "reviewer", "findings": [{"disposition": "fixed"}, {"disposition": "deferred"}], "changed_after_audit": false}, "expected": {"independent_audit_required": true, "auditor_independent": true, "findings_resolved": false, "ready_to_deploy": false, "complete": false, "reaudit_required": false, "pre_and_post_deployment_audit": false, "claim_independent_audit": true}},
+        {"id": "changed-after-audit", "input": {"risk_domains": ["schema-migration"], "auditor_available": true, "implementers": ["builder"], "auditor": "reviewer", "findings": [{"disposition": "disproved-with-evidence"}], "changed_after_audit": true}, "expected": {"independent_audit_required": true, "auditor_independent": true, "findings_resolved": true, "ready_to_deploy": false, "complete": false, "reaudit_required": true, "pre_and_post_deployment_audit": false, "claim_independent_audit": true}}
+      ]
     },
     {
       "id": "plan-readonly",
-      "scenario": "The parent is in Plan Mode and the user requested architecture analysis only.",
-      "input": {
-        "mode": "plan",
-        "authorization": "read-only"
-      },
-      "expected": {
-        "subagent_mutation": false,
-        "allowed_work": "inspection-and-analysis"
-      }
+      "scenario": "Delegated work inherits the parent's mode and write authorization.",
+      "contracts": ["authority.inherit-mode"],
+      "rule": "mutation-boundary",
+      "vectors": [
+        {"id": "plan-readonly", "input": {"mode": "plan", "authorization": "read-only"}, "expected": {"mutation_allowed": false}},
+        {"id": "default-write-authorized", "input": {"mode": "default", "authorization": "write"}, "expected": {"mutation_allowed": true}}
+      ]
     },
     {
       "id": "fork-override",
-      "scenario": "A delegated task needs a model and reasoning override.",
-      "input": {
-        "fork_turns": "all",
-        "model_override": "requested",
-        "reasoning_override": "requested"
-      },
-      "expected": {
-        "valid_combination": false,
-        "correction": "Use fork_turns none or a positive recent-turn count and include the necessary context."
-      }
+      "scenario": "Full-history forks inherit settings; explicit overrides require none or a positive recent-turn count.",
+      "contracts": ["routing.full-history-inherits"],
+      "rule": "fork-override",
+      "vectors": [
+        {"id": "all-without-override", "input": {"fork_turns": "all", "model_override": false, "reasoning_override": false}, "expected": {"valid_combination": true, "inherit_parent_settings": true}},
+        {"id": "all-with-model-override", "input": {"fork_turns": "all", "model_override": true, "reasoning_override": false}, "expected": {"valid_combination": false, "inherit_parent_settings": true}},
+        {"id": "none-with-overrides", "input": {"fork_turns": "none", "model_override": true, "reasoning_override": true}, "expected": {"valid_combination": true, "inherit_parent_settings": false}},
+        {"id": "recent-turns-with-overrides", "input": {"fork_turns": "3", "model_override": true, "reasoning_override": true}, "expected": {"valid_combination": true, "inherit_parent_settings": false}}
+      ]
     },
     {
       "id": "unsupported-model-fallback",
-      "scenario": "The preferred profile model is unavailable in the current tool schema.",
-      "input": {
-        "preferred_model_supported": false,
-        "task_profile": "general-code-analysis"
-      },
-      "expected": {
-        "invent_support": false,
-        "fallback": "Choose a supported model by task characteristics and preserve required capability and reasoning level."
-      }
+      "scenario": "Runtime model constraints preserve delegation without inventing support or cycling through models.",
+      "contracts": ["routing.settings-supported", "routing.luna-high-minimum", "routing.unsupported-fallback", "routing.no-mechanical-retry"],
+      "rule": "model-policy",
+      "vectors": [
+        {"id": "inherit-supported-fallback", "input": {"action": "fallback", "preferred_supported": false, "inherited_supported": true}, "expected": {"delegate": true, "set_explicit_override": false, "invent_support": false}},
+        {"id": "luna-below-high", "input": {"action": "luna-reasoning", "reasoning": "medium"}, "expected": {"valid_combination": false, "lower_luna_reasoning": false, "fallback": "another-supported-model"}},
+        {"id": "fast-not-explicit", "input": {"action": "fast-mode", "explicit_request": false, "supported": true}, "expected": {"valid_combination": false, "claim_applied": false}},
+        {"id": "unsupported-pro-setting", "input": {"action": "setting-support", "setting": "Pro", "supported": false}, "expected": {"verify_tool_schema": true, "verify_official_docs_when_needed": true, "claim_applied": false}},
+        {"id": "permission-failure", "input": {"action": "retry-diagnosis", "failure_reason": "permissions"}, "expected": {"retry_with_other_models": false, "resolve_actual_blocker": true}}
+      ]
+    },
+    {
+      "id": "completion-integration",
+      "scenario": "Completion requires current, proportionate evidence and factual reporting without redoing delegated work.",
+      "contracts": ["integration.no-redo", "completion.current-evidence", "completion.report-facts", "audit.reaudit-after-change"],
+      "rule": "completion-gate",
+      "vectors": [
+        {"id": "fully-verified", "input": {"assignments_accounted": true, "current_requirement_evidence": true, "subagent_checks_passed": true, "checks_proportional": true, "avoids_redundant_replay": true, "audit_findings_resolved": true, "evidence_invalidated": false, "affected_scope_reverified": false, "unrun_check_claimed_complete": false}, "expected": {"complete": true, "reverify_scope": "none", "conflict_basis": "requirements-and-evidence"}},
+        {"id": "changed-evidence-not-reverified", "input": {"assignments_accounted": true, "current_requirement_evidence": true, "subagent_checks_passed": true, "checks_proportional": true, "avoids_redundant_replay": true, "audit_findings_resolved": true, "evidence_invalidated": true, "affected_scope_reverified": false, "unrun_check_claimed_complete": false}, "expected": {"complete": false, "reverify_scope": "affected-only", "conflict_basis": "requirements-and-evidence"}},
+        {"id": "unrun-check-misreported", "input": {"assignments_accounted": true, "current_requirement_evidence": true, "subagent_checks_passed": true, "checks_proportional": true, "avoids_redundant_replay": true, "audit_findings_resolved": true, "evidence_invalidated": false, "affected_scope_reverified": false, "unrun_check_claimed_complete": true}, "expected": {"complete": false, "reverify_scope": "none", "conflict_basis": "requirements-and-evidence"}}
+      ]
     }
   ]
 }

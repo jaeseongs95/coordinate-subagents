@@ -29,10 +29,10 @@ $skill-installer install https://github.com/jaeseongs95/coordinate-subagents/tre
 
 위 내용은 셸 명령어가 아니라 Codex 프롬프트로 입력합니다.
 
-`v0.1.0`이 공개된 뒤 해당 버전으로 고정하려면 다음과 같이 설치합니다.
+현재 릴리스인 `v0.1.1`로 고정하려면 다음과 같이 설치합니다.
 
 ```text
-$skill-installer install https://github.com/jaeseongs95/coordinate-subagents/tree/v0.1.0/skills/coordinate-subagents
+$skill-installer install https://github.com/jaeseongs95/coordinate-subagents/tree/v0.1.1/skills/coordinate-subagents
 ```
 
 Codex는 새로 설치한 스킬을 보통 자동으로 감지합니다. 목록에 나타나지 않으면 Codex를 다시 시작하세요. 로컬 설치와 스킬 탐색 방식은 [OpenAI 공식 스킬 문서](https://learn.chatgpt.com/docs/build-skills)에서 확인할 수 있습니다.
@@ -48,6 +48,10 @@ $coordinate-subagents 이 작업을 독립 실행 단위로 나누고, 안전한
 자동 호출도 허용합니다. 요청이 병렬 위임, 쓰기 소유권 조정, 고위험 작업의 독립 검토와 분명히 맞으면 Codex가 이 스킬을 선택할 수 있습니다. 자동 선택 여부는 스킬 설명과 현재 호스트의 스킬 설정에 따라 달라집니다.
 
 이 스킬을 설치하거나 호출해도 권한이 추가되거나 승인이 생략되지는 않습니다. 사용자가 요청한 작업 범위도 넓어지지 않으며, 사용할 수 없던 도구나 모델이 새로 활성화되지 않습니다. 모든 서브에이전트에는 사용자 지시, 저장소 규칙, 실행 모드, 샌드박스, 권한, 도구 접근 제한이 그대로 적용됩니다.
+
+## 검증
+
+배포 전에는 `python tests/validate_skill.py`를 실행합니다. CI도 Ubuntu와 Windows에서 같은 검사를 수행합니다. 패키지 메타데이터, 링크, 라이선스, UI 설정, 미완성 표식과 비밀정보, 정책 계약 표식, 구조화된 정책 판단 사례를 검사합니다. 이 결정론적 검사는 문서에 적힌 정책 규칙과 판단 사례가 일치하는지 확인합니다. 언어 모델의 실제 행동까지 항상 같다고 보장하지는 않습니다. 동작 규칙이 달라진 릴리스에는 독립 전진 테스트와 감사를 별도 근거로 남깁니다.
 
 ## 저장소 구조
 
@@ -83,7 +87,7 @@ coordinate-subagents/
 └── ...
 ```
 
-현재 릴리스에는 `plugin.json`을 넣지 않습니다. 지금은 `coordinate-subagents`만 독립 스킬로 배포합니다. 여러 스킬이 준비되면 저장소 루트에 이식 가능한 플러그인 매니페스트를 추가하고, 기존 `skills/` 구조를 옮기지 않은 채 하나의 플러그인으로 묶을 수 있습니다. 자세한 형식은 OpenAI 공식 [스킬 제작 문서](https://learn.chatgpt.com/docs/build-skills)와 [플러그인 패키징 문서](https://developers.openai.com/plugins/build/plugins)를 참고하세요.
+현재 릴리스에는 `plugin.json`을 넣지 않습니다. 지금은 `coordinate-subagents`만 독립 스킬로 배포합니다. 여러 스킬이 준비되면 저장소 루트에 이식 가능한 정식 `plugin.json`을 추가하고, 기존 `skills/` 구조를 옮기지 않은 채 하나의 플러그인으로 묶을 수 있습니다. 호환용 `.codex-plugin/plugin.json`을 이 정식 매니페스트와 혼동하면 안 됩니다. 자세한 형식은 OpenAI 공식 [스킬 제작 문서](https://learn.chatgpt.com/docs/build-skills)와 [플러그인 패키징 문서](https://developers.openai.com/plugins/build/plugins)를 참고하세요.
 
 ## 라이선스
 
