@@ -3,7 +3,7 @@ name: coordinate-subagents
 description: Coordinate Codex subagents by decomposing multi-part work, delegating independent units, assigning ownership, integrating evidence, and requiring separate audits for high-risk changes. Use when the user requests delegation or parallel agents, when work has two or more independently executable units, or when high-risk work needs an independent audit. Do not activate implicitly for ordinary atomic work; an explicit user request for delegation or independent review still applies.
 license: MIT
 metadata:
-  version: "0.1.2"
+  version: "1.0.0"
 ---
 
 # Coordinate Subagents

@@ -29,10 +29,10 @@ $skill-installer install https://github.com/jaeseongs95/coordinate-subagents/tre
 
 Enter this as a Codex prompt, not as a shell command.
 
-To pin the current `v0.1.2` release:
+To pin the current `v1.0.0` release:
 
 ```text
-$skill-installer install https://github.com/jaeseongs95/coordinate-subagents/tree/v0.1.2/skills/coordinate-subagents
+$skill-installer install https://github.com/jaeseongs95/coordinate-subagents/tree/v1.0.0/skills/coordinate-subagents
 ```
 
 Codex normally detects newly installed skills automatically. Restart Codex if the skill does not appear. The [official OpenAI skill guide](https://learn.chatgpt.com/docs/build-skills) describes local skill installation and discovery.
