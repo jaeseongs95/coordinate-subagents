@@ -37,6 +37,8 @@ $skill-installer install https://github.com/jaeseongs95/coordinate-subagents/tre
 
 Codex는 새로 설치한 스킬을 보통 자동으로 감지합니다. 목록에 나타나지 않으면 Codex를 다시 시작하세요. 로컬 설치와 스킬 탐색 방식은 [OpenAI 공식 스킬 문서](https://learn.chatgpt.com/docs/build-skills)에서 확인할 수 있습니다.
 
+이 스킬은 위 방법으로 단독 설치해 사용할 수 있습니다. 여러 거버넌스 스킬과 함께 구성하려면 이 스킬이 포함된 [Agent Governance Suite](https://github.com/jaeseongs95/agent-governance-suite)를 설치해 통합된 워크플로로 사용할 수도 있습니다.
+
 ## 사용법
 
 작업에 위임을 명시적으로 적용하려면 프롬프트에서 스킬을 호출합니다.

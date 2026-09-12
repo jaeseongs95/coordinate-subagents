@@ -37,6 +37,8 @@ $skill-installer install https://github.com/jaeseongs95/coordinate-subagents/tre
 
 Codex normally detects newly installed skills automatically. Restart Codex if the skill does not appear. The [official OpenAI skill guide](https://learn.chatgpt.com/docs/build-skills) describes local skill installation and discovery.
 
+You can install and use this skill on its own as described above. To use it in an integrated workflow with other governance skills, install the [Agent Governance Suite](https://github.com/jaeseongs95/agent-governance-suite), which includes this skill.
+
 ## Use
 
 Invoke the skill explicitly when you want delegation to be part of the task:
