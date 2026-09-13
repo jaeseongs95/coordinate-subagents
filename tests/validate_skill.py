@@ -25,13 +25,15 @@ EXPECTED_CASE_IDS = {
     "audit-slot-reservation",
     "completion-integration",
     "delegation-exception-boundary",
-    "independent-two-plus-parallel",
+    "duplicate-work-block",
+    "net-benefit-two-plus-parallel",
     "dependency-order",
     "dispatch-recovery",
     "explicit-atomic-allocation",
     "shared-write-ownership",
     "slot-shortage-reuse",
     "high-risk-independent-audit",
+    "limited-context-handoff",
     "plan-readonly",
     "preference-resolution",
     "fork-override",
@@ -42,17 +44,23 @@ POLICY_REQUIRED_CLAUSES = {
         "Apply the current mode and write restrictions to every delegated task.",
     ),
     "delegation.atomic-local": (
-        "Keep ordinary atomic work local unless the user explicitly requests delegation or independent review.",
+        "Keep work local when the net-benefit conditions are not all confirmed, including multi-unit work that is sequential, shares a writer, needs the coordinator's full context, or would cost more to hand off and integrate.",
     ),
     "delegation.explicit-request": (
-        "The user explicitly asks for subagents, delegation, or parallel work.",
+        "Implementation delegation is allowed only when the user explicitly requests it or every net-benefit condition below is satisfied:",
     ),
     "delegation.independent-parallel": (
-        "Two or more independent units exist.",
+        "The unit has an independently verifiable result and completion condition.",
+        "Concurrent execution reduces a real dependency or time bottleneck.",
+        "A limited brief can provide enough context for accurate work.",
+        "File and external-state ownership can remain disjoint and single-writer.",
+        "Handoff, waiting, review, integration, and likely rework still cost less than direct execution.",
+        "Record the positive delegation reason before dispatch; the number of work units, task size, complexity, or `orchestration.requested` alone is not a positive reason.",
     ),
     "delegation.allowed-exceptions": (
-        "When delegation is otherwise required, the only exceptions are that every remaining unit depends on prior output, the same file or state requires exclusive access, or collaboration slots, tools, or permissions are unavailable.",
-        "Task size, coordinator convenience, handoff cost, or token cost alone are not valid exceptions, and no exception waives a required high-risk audit.",
+        "When approved delegation cannot run because dependencies, exclusive state, slots, tools, or permissions make it impossible, keep the work local and disclose the concrete reason.",
+        "Task size and coordinator convenience do not override the net-benefit check.",
+        "No implementation-delegation decision waives a required high-risk audit.",
     ),
     "preferences.ask-once": (
         "At the first point in each task when delegation will occur, check whether the user or host already supplied a delegation preference.",
@@ -63,7 +71,7 @@ POLICY_REQUIRED_CLAUSES = {
         "A preference may tune allocation and supported runtime settings, but it never expands authority or waives required independent audits.",
     ),
     "allocation.keep-one-and-fill-slots": (
-        "When two or more implementation units exist, keep one independent unit with the coordinator and assign the others across available slots.",
+        "When implementation delegation has been approved and two or more implementation units exist, keep one independent unit with the coordinator and assign the others across available slots.",
         "If the user explicitly asks to delegate the only implementation unit, assign that unit to a subagent and keep coordination and evidence review with the coordinator.",
     ),
     "allocation.batch-reuse": (
@@ -79,6 +87,15 @@ POLICY_REQUIRED_CLAUSES = {
     "integration.no-redo": (
         "Do not redo delegated work.",
         "Resolve disagreements from requirements, current artifacts, and verification results rather than model identity.",
+    ),
+    "integration.no-duplicate-retry": (
+        "Do not dispatch another assignment with the same objective, input or candidate digest, and failure evidence unless a new discriminator or explicitly requested independent comparison changes the work.",
+    ),
+    "context.limited-default": (
+        "Use a limited-history or no-history fork by default.",
+        "Supply the brief, source locations and artifact digests instead of the full conversation.",
+        "Use full history only when omitting it would make the unit inaccurate or unverifiable, and record that concrete reason before dispatch.",
+        "Do not paste large logs or completed work products into the coordinator context; return their artifact locations, conclusions, verification evidence, and unresolved items.",
     ),
     "audit.independent-required": (
         "Assign an auditor who did not implement the change.",
@@ -142,7 +159,7 @@ POLICY_FORBIDDEN_CLAUSES = {
         "Fill all implementation slots before considering a later auditor.",
     ),
     "delegation.independent-parallel": (
-        "Delegation is optional when two or more independent units exist.",
+        "Two or more independent units exist.",
     ),
     "audit.independent-required": (
         "An implementer may audit their own work.",
@@ -476,23 +493,24 @@ def read_markdown_section(path: Path, section: str) -> str:
 def evaluate_delegation_trigger(inputs: dict[str, object]) -> dict[str, object]:
     if inputs.get("explicit_request") is True:
         return {"delegate": True, "trigger": "explicit-user-request"}
-    if int(inputs.get("independent_units", 0)) >= 2:
-        return {"delegate": True, "trigger": "independent-units"}
     if inputs.get("high_risk") is True:
         return {"delegate": True, "trigger": "high-risk-audit"}
+    if int(inputs.get("independent_units", 0)) >= 2 and inputs.get("net_benefit_confirmed") is True:
+        return {"delegate": True, "trigger": "documented-net-benefit"}
     return {"delegate": False, "trigger": "none"}
 
 
 def evaluate_parallel_allocation(inputs: dict[str, object]) -> dict[str, object]:
     independent_units = int(inputs["independent_units"])
+    delegation_approved = inputs.get("delegation_approved") is True
     slot_count = max(int(inputs["slot_count"]), 0)
     usable_subagents = max(slot_count - 1, 0) if inputs["slot_kind"] == "team-capacity" else slot_count
-    coordinator_units = 1 if independent_units else 0
+    coordinator_units = (1 if independent_units else 0) if delegation_approved else independent_units
     remaining = max(independent_units - coordinator_units, 0)
-    active_subagents = min(remaining, usable_subagents)
-    queued_units = remaining - active_subagents
+    active_subagents = min(remaining, usable_subagents) if delegation_approved else 0
+    queued_units = remaining - active_subagents if delegation_approved else 0
     return {
-        "delegate": independent_units >= 2,
+        "delegate": delegation_approved and independent_units >= 2,
         "coordinator_units": coordinator_units,
         "active_subagents": active_subagents,
         "queued_units": queued_units,
@@ -746,6 +764,32 @@ def evaluate_completion_gate(inputs: dict[str, object]) -> dict[str, object]:
     }
 
 
+def evaluate_context_handoff(inputs: dict[str, object]) -> dict[str, object]:
+    limited_sufficient = inputs.get("limited_context_sufficient") is True
+    return {
+        "context_mode": "limited" if limited_sufficient else "full-history",
+        "full_history_reason_required": not limited_sufficient,
+        "inline_large_artifacts": False,
+    }
+
+
+def evaluate_duplicate_work(inputs: dict[str, object]) -> dict[str, object]:
+    same_work = all(inputs.get(key) is True for key in (
+        "same_objective",
+        "same_input_digest",
+        "same_candidate_digest",
+        "same_failure_evidence",
+    ))
+    changed = (
+        inputs.get("new_discriminator") is True
+        or inputs.get("independent_comparison_requested") is True
+    )
+    return {
+        "dispatch": not same_work or changed,
+        "reuse_existing_assignment": same_work and not changed,
+    }
+
+
 BEHAVIOR_EVALUATORS = {
     "delegation-trigger": evaluate_delegation_trigger,
     "parallel-allocation": evaluate_parallel_allocation,
@@ -761,6 +805,8 @@ BEHAVIOR_EVALUATORS = {
     "fork-override": evaluate_fork_override,
     "model-policy": evaluate_model_policy,
     "completion-gate": evaluate_completion_gate,
+    "context-handoff": evaluate_context_handoff,
+    "duplicate-work": evaluate_duplicate_work,
 }
 
 

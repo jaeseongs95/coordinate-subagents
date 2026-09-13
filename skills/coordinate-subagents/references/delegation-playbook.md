@@ -40,7 +40,7 @@ When reusing a completed agent, send a complete new brief. Do not assume the old
 
 <!-- policy-contract: allocation.explicit-single-delegation-playbook -->
 
-- Keep one useful implementation unit with the coordinator when two or more implementation units exist. If the user explicitly delegates the only implementation unit, give it to the subagent and keep coordination and evidence review with the coordinator.
+- After the net-benefit decision approves implementation delegation, keep one useful implementation unit with the coordinator when two or more implementation units exist. If the user explicitly delegates the only implementation unit, give it to the subagent and keep coordination and evidence review with the coordinator.
 - Interpret the host's slot contract before allocating work. A reported total team capacity includes the coordinator unless the host says otherwise; a reported subagent count does not.
 
 <!-- policy-contract: audit.reserve-identity-playbook -->

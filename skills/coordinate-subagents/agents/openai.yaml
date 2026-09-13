@@ -1,7 +1,7 @@
 interface:
   display_name: "Coordinate Subagents"
-  short_description: "Delegate independent work and coordinate verified results"
-  default_prompt: "Use $coordinate-subagents to delegate independent work safely and integrate verified results."
+  short_description: "Delegate only when coordination has a documented net benefit"
+  default_prompt: "Use $coordinate-subagents to justify useful delegation, assign it safely, and integrate verified results."
 
 policy:
   allow_implicit_invocation: true

@@ -1,6 +1,6 @@
 ---
 name: coordinate-subagents
-description: Coordinate Codex subagents by decomposing multi-part work, delegating independent units, assigning ownership, integrating evidence, and requiring separate audits for high-risk changes. Use when the user requests delegation or parallel agents, when work has two or more independently executable units, or when high-risk work needs an independent audit. Do not activate implicitly for ordinary atomic work; an explicit user request for delegation or independent review still applies.
+description: Coordinate Codex subagents by delegating work only when the user requests it or a documented net-benefit check justifies it, assigning ownership, integrating evidence, and separating required high-risk audits. Do not activate solely because multiple work units exist, a task is complex, or orchestration is enabled.
 license: MIT
 metadata:
   version: "1.0.0"
@@ -23,19 +23,23 @@ Coordinate work across subagents without expanding the user's scope, permissions
 
 At the start of a task, identify execution units and their dependencies. A unit is independent when it can begin without another unit's intermediate result and has its own responsibility, completion condition, and verification criterion.
 
-Delegate when any of these conditions holds:
+Implementation delegation is allowed only when the user explicitly requests it or every net-benefit condition below is satisfied:
 
 <!-- policy-contract: delegation.explicit-request -->
 <!-- policy-contract: delegation.independent-parallel -->
 
-- The user explicitly asks for subagents, delegation, or parallel work.
-- Two or more independent units exist.
-- A high-risk change requires an independent auditor.
+- The unit has an independently verifiable result and completion condition.
+- Concurrent execution reduces a real dependency or time bottleneck.
+- A limited brief can provide enough context for accurate work.
+- File and external-state ownership can remain disjoint and single-writer.
+- Handoff, waiting, review, integration, and likely rework still cost less than direct execution.
+
+A required high-risk audit justifies a separate auditor, not implementation delegation. Record the positive delegation reason before dispatch; the number of work units, task size, complexity, or `orchestration.requested` alone is not a positive reason.
 
 <!-- policy-contract: delegation.atomic-local -->
 <!-- policy-contract: delegation.allowed-exceptions -->
 
-Keep ordinary atomic work local unless the user explicitly requests delegation or independent review. When delegation is otherwise required, the only exceptions are that every remaining unit depends on prior output, the same file or state requires exclusive access, or collaboration slots, tools, or permissions are unavailable. State the concrete exception. Task size, coordinator convenience, handoff cost, or token cost alone are not valid exceptions, and no exception waives a required high-risk audit.
+Keep work local when the net-benefit conditions are not all confirmed, including multi-unit work that is sequential, shares a writer, needs the coordinator's full context, or would cost more to hand off and integrate. When approved delegation cannot run because dependencies, exclusive state, slots, tools, or permissions make it impossible, keep the work local and disclose the concrete reason. Task size and coordinator convenience do not override the net-benefit check. No implementation-delegation decision waives a required high-risk audit.
 
 ## Resolve the delegation preference
 
@@ -52,7 +56,7 @@ Read [the optional model-routing profile](references/model-routing.md) for the p
 <!-- policy-contract: allocation.keep-one-and-fill-slots -->
 <!-- policy-contract: allocation.batch-reuse -->
 
-When two or more implementation units exist, keep one independent unit with the coordinator and assign the others across available slots. If the user explicitly asks to delegate the only implementation unit, assign that unit to a subagent and keep coordination and evidence review with the coordinator. Interpret slot counts from the host contract: when the host reports a total team capacity, the coordinator occupies one slot; when it reports subagent slots, those are all available to delegated work. When independent units exceed the usable slot count, run them in batches and reuse completed subagents with a fresh brief. Do not create artificial units merely to increase parallelism.
+When implementation delegation has been approved and two or more implementation units exist, keep one independent unit with the coordinator and assign the others across available slots. If the user explicitly asks to delegate the only implementation unit, assign that unit to a subagent and keep coordination and evidence review with the coordinator. Interpret slot counts from the host contract: when the host reports a total team capacity, the coordinator occupies one slot; when it reports subagent slots, those are all available to delegated work. When independent units exceed the usable slot count, run them in batches and reuse completed subagents with a fresh brief. Do not create artificial units merely to increase parallelism.
 
 <!-- policy-contract: audit.reserve-identity -->
 
@@ -67,6 +71,10 @@ Every brief must include:
 - the expected output;
 - completion and verification criteria.
 
+<!-- policy-contract: context.limited-default -->
+
+Use a limited-history or no-history fork by default. Supply the brief, source locations and artifact digests instead of the full conversation. Use full history only when omitting it would make the unit inaccurate or unverifiable, and record that concrete reason before dispatch. Do not paste large logs or completed work products into the coordinator context; return their artifact locations, conclusions, verification evidence, and unresolved items.
+
 <!-- policy-contract: ownership.single-writer -->
 
 Give one writer ownership of each shared file or external state. Sequence work when ownership cannot be separated safely. A subagent owns investigation, implementation, deliverable preparation, and verification inside its assigned scope and must coordinate before changing another owner's area.
@@ -79,6 +87,8 @@ Read [the delegation playbook](references/delegation-playbook.md) when preparing
 
 - Track each assignment and collect its output and verification evidence.
 - Use follow-up messages to refine an existing assignment instead of silently duplicating it.
+<!-- policy-contract: integration.no-duplicate-retry -->
+- Do not dispatch another assignment with the same objective, input or candidate digest, and failure evidence unless a new discriminator or explicitly requested independent comparison changes the work.
 - Wait for delegated work with the collaboration mechanism provided by the host.
 - Do not redo delegated work. Review evidence, compare alternatives, resolve conflicts, and integrate the results.
 - Resolve disagreements from requirements, current artifacts, and verification results rather than model identity.
