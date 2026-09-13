@@ -1,6 +1,6 @@
 ---
 name: coordinate-subagents
-description: Coordinate Codex subagents by delegating work only when the user requests it or a documented net-benefit check justifies it, assigning ownership, integrating evidence, and separating required high-risk audits. Do not activate solely because multiple work units exist, a task is complex, or orchestration is enabled.
+description: Coordinate subagents in Codex and Claude Code by delegating only when the user requests it or a documented net-benefit check justifies it, assigning ownership, integrating evidence, and separating required high-risk audits. Do not activate solely because multiple work units exist, a task is complex, or orchestration is enabled.
 license: MIT
 metadata:
   version: "1.0.0"
@@ -44,12 +44,13 @@ Keep work local when the net-benefit conditions are not all confirmed, including
 ## Resolve the delegation preference
 
 <!-- policy-contract: preferences.ask-once -->
+<!-- policy-contract: preferences.no-allocation-effects -->
 
-At the first point in each task when delegation will occur, check whether the user or host already supplied a delegation preference. If no preference exists and choosing among the bundled profiles would materially affect agent count, batching, model selection, or reasoning effort, ask one short optional question offering `balanced` (recommended), `economy`, and `quality`. Ask at most once per task. Do not ask when a preference is already available or the choice would not materially affect execution.
+At the first point in each task when delegation will occur, check whether the user or host already supplied a delegation preference. If no preference exists and choosing among the bundled profiles would materially affect model selection or reasoning effort, ask one short optional question offering `balanced` (recommended), `economy`, and `quality`. Ask at most once per task. Do not ask when a preference is already available or the choice would not materially affect execution.
 
-Continue safe preparation while an answer is pending. If no answer is available before dispatch or the host cannot ask, use `balanced` and proceed. Never infer a subscription plan from model availability or usage observations; use plan details only when the user or host provides them. A preference may tune allocation and supported runtime settings, but it never expands authority or waives required independent audits.
+Continue safe preparation while an answer is pending. If no answer is available before dispatch or the host cannot ask, use `balanced` and proceed. Never infer a subscription plan from model availability or usage observations; use plan details only when the user or host provides them. A preference may tune supported runtime model and effort settings, but it must not trigger delegation, increase agent count, change batching, expand authority, or waive required independent audits.
 
-Read [the optional model-routing profile](references/model-routing.md) for the profile definitions.
+Read [the provider-neutral model-routing presets and host adapters](references/model-routing.md) for the profile definitions.
 
 ## Assign work
 
@@ -110,7 +111,7 @@ Resolve each audit finding by fixing it, disproving it with evidence, or recordi
 
 ## Select models only when useful
 
-Read [the optional model-routing profile](references/model-routing.md) before choosing an explicit model or reasoning override. First inspect the collaboration tool's currently supported combinations. User or host settings override the bundled profile; unsupported profile entries never block delegation when an inherited supported configuration can do the work.
+Read [the provider-neutral model-routing presets and host adapters](references/model-routing.md) before choosing an explicit model or reasoning override. First inspect the current host's supported combinations. User or host settings override the bundled profile; unsupported profile entries never block delegation when an inherited supported configuration can do the work.
 
 ## Complete the task
 

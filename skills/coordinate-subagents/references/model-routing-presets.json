@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "default_profile": "balanced",
+  "roles": [
+    "discovery",
+    "general-implementation",
+    "complex-reasoning",
+    "independent-audit"
+  ],
+  "model_class_order": [
+    "lightweight",
+    "general",
+    "deep",
+    "frontier"
+  ],
+  "effort_order": [
+    "low",
+    "medium",
+    "high",
+    "xhigh",
+    "max",
+    "ultra"
+  ],
+  "invariants": {
+    "controls_delegation": false,
+    "controls_agent_count": false,
+    "controls_batching": false,
+    "user_override_precedence": true,
+    "capability_check_required": true,
+    "high_risk_minimum_model_class": "general",
+    "high_risk_minimum_effort": "high"
+  },
+  "providers": {
+    "openai-codex": {
+      "application": {
+        "model_field": "model",
+        "effort_field": "reasoning_effort",
+        "model_delivery": ["spawn-argument"],
+        "effort_delivery": ["spawn-argument"],
+        "verification": "spawn-result"
+      },
+      "profiles": {
+        "economy": {
+          "discovery": {"model": "gpt-5.6-luna", "effort": "high", "model_class": "lightweight"},
+          "general-implementation": {"model": "gpt-5.6-terra", "effort": "medium", "model_class": "general"},
+          "complex-reasoning": {"model": "gpt-5.6-sol", "effort": "medium", "model_class": "deep"},
+          "independent-audit": {"model": "gpt-5.6-sol", "effort": "high", "model_class": "deep"}
+        },
+        "balanced": {
+          "discovery": {"model": "gpt-5.6-luna", "effort": "high", "model_class": "lightweight"},
+          "general-implementation": {"model": "gpt-5.6-terra", "effort": "medium", "model_class": "general"},
+          "complex-reasoning": {"model": "gpt-5.6-sol", "effort": "high", "model_class": "deep"},
+          "independent-audit": {"model": "gpt-6-astra", "effort": "high", "model_class": "frontier"}
+        },
+        "quality": {
+          "discovery": {"model": "gpt-5.6-terra", "effort": "medium", "model_class": "general"},
+          "general-implementation": {"model": "gpt-5.6-sol", "effort": "high", "model_class": "deep"},
+          "complex-reasoning": {"model": "gpt-6-astra", "effort": "high", "model_class": "frontier"},
+          "independent-audit": {"model": "gpt-6-astra", "effort": "xhigh", "model_class": "frontier"}
+        }
+      }
+    },
+    "anthropic-claude-code": {
+      "application": {
+        "model_field": "model",
+        "effort_field": "effort",
+        "model_delivery": ["per-invocation-argument", "subagent-frontmatter"],
+        "effort_delivery": ["subagent-frontmatter", "cli-agent-definition"],
+        "verification": "tasks-view"
+      },
+      "profiles": {
+        "economy": {
+          "discovery": {"model": "haiku", "effort": "low", "model_class": "lightweight"},
+          "general-implementation": {"model": "sonnet", "effort": "medium", "model_class": "general"},
+          "complex-reasoning": {"model": "opus", "effort": "medium", "model_class": "deep"},
+          "independent-audit": {"model": "opus", "effort": "high", "model_class": "deep"}
+        },
+        "balanced": {
+          "discovery": {"model": "haiku", "effort": "high", "model_class": "lightweight"},
+          "general-implementation": {"model": "sonnet", "effort": "high", "model_class": "general"},
+          "complex-reasoning": {"model": "opus", "effort": "high", "model_class": "deep"},
+          "independent-audit": {"model": "fable", "effort": "high", "model_class": "frontier"}
+        },
+        "quality": {
+          "discovery": {"model": "sonnet", "effort": "high", "model_class": "general"},
+          "general-implementation": {"model": "opus", "effort": "high", "model_class": "deep"},
+          "complex-reasoning": {"model": "fable", "effort": "xhigh", "model_class": "frontier"},
+          "independent-audit": {"model": "fable", "effort": "xhigh", "model_class": "frontier"}
+        }
+      }
+    }
+  }
+}

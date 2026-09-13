@@ -2,7 +2,7 @@
 
 [한국어](README.ko.md)
 
-`coordinate-subagents` is a Codex skill for deciding when to delegate work, assigning independent work to subagents, coordinating shared state, and requiring a separate review for high-risk changes.
+`coordinate-subagents` is a portable skill for deciding when to delegate work in Codex or Claude Code, assigning independent work to subagents, coordinating shared state, and requiring a separate review for high-risk changes.
 
 The repository is organized as a multi-skill package from the start. It currently contains one installable skill at [`skills/coordinate-subagents`](skills/coordinate-subagents). More focused skills and an orchestrator can be added without merging their instructions into one large skill.
 
@@ -15,11 +15,11 @@ The repository is organized as a multi-skill package from the start. It currentl
 - Keeps shared-file and shared-state writes coordinated.
 - Uses an independent reviewer for security, permissions, payments, data loss, migrations, deployment, and global configuration changes.
 - Leaves final integration and accountability with the coordinating agent.
-- Offers an optional model-routing profile for Luna, Terra, Sol, and Astra while respecting the models and reasoning levels available in the current host.
+- Offers provider-neutral `economy`, `balanced`, and `quality` presets with separate Codex and Claude Code mappings.
 
-The model-routing profile is a maintainer-recommended default, not a requirement. User instructions, repository rules, host capabilities, and runtime restrictions take precedence. See [`model-routing.md`](skills/coordinate-subagents/references/model-routing.md).
+The presets select only the model and reasoning effort after delegation is approved. They do not trigger delegation, increase the agent count, or change batching. User instructions, repository rules, host capabilities, and runtime restrictions take precedence. See [`model-routing.md`](skills/coordinate-subagents/references/model-routing.md) and the machine-readable [`model-routing-presets.json`](skills/coordinate-subagents/references/model-routing-presets.json).
 
-## Install
+## Install in Codex
 
 Use the built-in `$skill-installer` and give it the GitHub folder URL:
 
@@ -39,6 +39,10 @@ Codex normally detects newly installed skills automatically. Restart Codex if th
 
 You can install and use this skill on its own as described above. To use it in an integrated workflow with other governance skills, install the [Agent Governance Suite](https://github.com/jaeseongs95/agent-governance-suite), which includes this skill.
 
+## Install in Claude Code
+
+Copy `skills/coordinate-subagents` to `~/.claude/skills/coordinate-subagents` for personal use, or to `.claude/skills/coordinate-subagents` inside a project for project-scoped use. Claude Code discovers the `SKILL.md` file and its referenced files from that directory. See the [official Claude Code skills guide](https://code.claude.com/docs/en/skills).
+
 ## Use
 
 Invoke the skill explicitly when you want delegation to be part of the task:
@@ -47,7 +51,7 @@ Invoke the skill explicitly when you want delegation to be part of the task:
 $coordinate-subagents split this work into independent units, run the safe units in parallel, and integrate the verified results.
 ```
 
-The skill also allows implicit invocation. Codex may select it when a request clearly involves parallel delegation, ownership coordination, or an independent high-risk review. Implicit matching depends on the skill description and the host's current skill configuration.
+The skill also allows implicit invocation. Codex or Claude Code may select it when a request clearly involves parallel delegation, ownership coordination, or an independent high-risk review. Implicit matching depends on the skill description and the host's current skill configuration.
 
 Installing or invoking this skill does not grant permissions, bypass approvals, expand the user's request, or make unavailable tools and models available. Every subagent remains subject to the same applicable user instructions, repository rules, execution mode, sandbox, permissions, and tool access.
 

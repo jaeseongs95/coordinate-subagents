@@ -36,6 +36,7 @@ EXPECTED_CASE_IDS = {
     "limited-context-handoff",
     "plan-readonly",
     "preference-resolution",
+    "provider-routing-presets",
     "fork-override",
     "unsupported-model-fallback",
 }
@@ -64,11 +65,13 @@ POLICY_REQUIRED_CLAUSES = {
     ),
     "preferences.ask-once": (
         "At the first point in each task when delegation will occur, check whether the user or host already supplied a delegation preference.",
-        "If no preference exists and choosing among the bundled profiles would materially affect agent count, batching, model selection, or reasoning effort, ask one short optional question offering `balanced` (recommended), `economy`, and `quality`.",
+        "If no preference exists and choosing among the bundled profiles would materially affect model selection or reasoning effort, ask one short optional question offering `balanced` (recommended), `economy`, and `quality`.",
         "Ask at most once per task.",
         "If no answer is available before dispatch or the host cannot ask, use `balanced` and proceed.",
         "Never infer a subscription plan from model availability or usage observations; use plan details only when the user or host provides them.",
-        "A preference may tune allocation and supported runtime settings, but it never expands authority or waives required independent audits.",
+    ),
+    "preferences.no-allocation-effects": (
+        "A preference may tune supported runtime model and effort settings, but it must not trigger delegation, increase agent count, change batching, expand authority, or waive required independent audits.",
     ),
     "allocation.keep-one-and-fill-slots": (
         "When implementation delegation has been approved and two or more implementation units exist, keep one independent unit with the coordinator and assign the others across available slots.",
@@ -132,10 +135,30 @@ POLICY_REQUIRED_CLAUSES = {
         "If a spawn or dispatch fails, inspect agent status before deciding what happened.",
         "Keep the unit local only when delegation is no longer possible and disclose why.",
     ),
+    "routing.preset-does-not-delegate": (
+        "Apply a preset only after implementation delegation or an independent audit has already been approved.",
+        "A preset selects a model and reasoning effort for an assigned role; it never triggers delegation, increases agent count, changes batching, broadens authority, or waives a required audit.",
+    ),
+    "routing.user-override-precedence": (
+        "A user-supplied model or effort overrides the preset when the host supports it.",
+    ),
+    "routing.role-provider-matrix": (
+        "Classify each approved assignment as one of these roles before consulting a provider mapping:",
+        "Select the profile and role first, then resolve the current host's provider entry in `model-routing-presets.json`.",
+        "Provider model names and effort labels are adapter values, not cross-provider quality equivalences.",
+    ),
+    "routing.codex-adapter": (
+        "For Codex collaboration tools, pass the selected `model` and `reasoning_effort` as spawn arguments only when the current schema supports that exact combination.",
+    ),
+    "routing.claude-code-adapter": (
+        "For Claude Code, prefer stable aliases such as `haiku`, `sonnet`, `opus`, and `fable` instead of pinning dated model IDs.",
+        "Apply `model` and `effort` in a custom subagent definition or CLI agent definition; a per-invocation model argument may override the definition when the current host supports it.",
+        "Claude Code effort levels are calibrated within each model, so do not treat the same label as an exact match to a Codex reasoning level.",
+    ),
     "routing.settings-supported": (
-        "Inspect the current collaboration tool schema before setting an override.",
-        "Confirm the meaning and support of modes or aliases such as `Fast` and `Pro`, and reasoning levels such as `ultra`, from the current tool schema and, when needed, official host documentation.",
-        "Never report an unsupported setting as applied.",
+        "Inspect the current host schema and capabilities before setting an override.",
+        "Never report an unsupported or unverified setting as applied.",
+        "Use modes such as `Fast` and `Pro`, or effort levels such as `ultra` and `ultracode`, only when the user explicitly requests them and the current host documents and exposes the control.",
     ),
     "routing.luna-high-minimum": (
         "Use `gpt-5.6-luna` only at `high` reasoning or above.",
@@ -145,7 +168,7 @@ POLICY_REQUIRED_CLAUSES = {
         "With `fork_turns=\"all\"`, inherit the parent model and reasoning effort; do not set model or reasoning overrides.",
     ),
     "routing.unsupported-fallback": (
-        "If overrides are unavailable but inherited execution is supported, delegate with the inherited configuration.",
+        "If a preferred override is unavailable but inherited execution is supported, delegate with the inherited configuration.",
     ),
     "routing.no-mechanical-retry": (
         "Do not retry through progressively different models when the failure comes from missing information, permissions, tools, an unsupported setting, or an incomplete specification.",
@@ -451,6 +474,87 @@ def validate_no_sensitive_data() -> None:
     require(not failures, "possible sensitive data or personal paths found:\n  " + "\n  ".join(failures))
 
 
+def load_routing_presets() -> dict[str, object]:
+    path = SKILL_ROOT / "references" / "model-routing-presets.json"
+    try:
+        document = json.loads(
+            read_utf8(path),
+            object_pairs_hook=reject_duplicate_json_pairs,
+        )
+    except json.JSONDecodeError as error:
+        raise ValidationError("model-routing-presets.json must be valid JSON") from error
+    require(isinstance(document, dict), "model-routing-presets.json must contain an object")
+    return document
+
+
+def validate_routing_presets() -> None:
+    document = load_routing_presets()
+    roles = {"discovery", "general-implementation", "complex-reasoning", "independent-audit"}
+    profiles = {"economy", "balanced", "quality"}
+    providers = {"openai-codex", "anthropic-claude-code"}
+    require(document.get("schema_version") == 1, "routing presets must declare schema_version 1")
+    require(document.get("default_profile") == "balanced", "routing presets must default to balanced")
+    require(set(document.get("roles", [])) == roles, "routing preset roles differ from the required set")
+    require(set(document.get("model_class_order", [])) == {"lightweight", "general", "deep", "frontier"},
+            "routing model classes differ from the required set")
+    effort_order = document.get("effort_order")
+    require(effort_order == ["low", "medium", "high", "xhigh", "max", "ultra"],
+            "routing effort order is invalid")
+
+    invariants = document.get("invariants")
+    require(isinstance(invariants, dict), "routing presets require invariants")
+    for key in ("controls_delegation", "controls_agent_count", "controls_batching"):
+        require(invariants.get(key) is False, f"routing invariant {key} must remain false")
+    for key in ("user_override_precedence", "capability_check_required"):
+        require(invariants.get(key) is True, f"routing invariant {key} must remain true")
+    require(invariants.get("high_risk_minimum_model_class") == "general",
+            "high-risk routing must require at least the general model class")
+    require(invariants.get("high_risk_minimum_effort") == "high",
+            "high-risk routing must require at least high effort")
+
+    provider_documents = document.get("providers")
+    require(isinstance(provider_documents, dict) and set(provider_documents) == providers,
+            "routing presets must contain exactly the Codex and Claude Code adapters")
+    expected_fields = {
+        "openai-codex": ("model", "reasoning_effort"),
+        "anthropic-claude-code": ("model", "effort"),
+    }
+    claude_aliases = {"haiku", "sonnet", "opus", "fable"}
+    for provider_name, provider in provider_documents.items():
+        require(isinstance(provider, dict), f"routing provider {provider_name} must be an object")
+        application = provider.get("application")
+        require(isinstance(application, dict), f"routing provider {provider_name} requires application metadata")
+        model_field, effort_field = expected_fields[provider_name]
+        require(application.get("model_field") == model_field,
+                f"routing provider {provider_name} has the wrong model field")
+        require(application.get("effort_field") == effort_field,
+                f"routing provider {provider_name} has the wrong effort field")
+        provider_profiles = provider.get("profiles")
+        require(isinstance(provider_profiles, dict) and set(provider_profiles) == profiles,
+                f"routing provider {provider_name} must define all profiles")
+        for profile_name, role_map in provider_profiles.items():
+            require(isinstance(role_map, dict) and set(role_map) == roles,
+                    f"routing provider {provider_name}/{profile_name} must define all roles")
+            for role_name, selection in role_map.items():
+                require(isinstance(selection, dict)
+                        and set(selection) == {"model", "effort", "model_class"},
+                        f"routing selection {provider_name}/{profile_name}/{role_name} is malformed")
+                require(isinstance(selection["model"], str) and selection["model"],
+                        f"routing selection {provider_name}/{profile_name}/{role_name} needs a model")
+                require(selection["effort"] in effort_order,
+                        f"routing selection {provider_name}/{profile_name}/{role_name} has invalid effort")
+                require(selection["model_class"] in document["model_class_order"],
+                        f"routing selection {provider_name}/{profile_name}/{role_name} has invalid model class")
+                if selection["model"] == "gpt-5.6-luna":
+                    require(effort_order.index(selection["effort"]) >= effort_order.index("high"),
+                            "gpt-5.6-luna routing entries must use high effort or above")
+                if provider_name == "anthropic-claude-code":
+                    require(selection["model"] in claude_aliases,
+                            "Claude Code routing entries must use documented stable aliases")
+                    require(selection["effort"] != "ultra",
+                            "Claude Code routing entries must not use the Codex-only ultra effort")
+
+
 POLICY_MARKER = re.compile(r"<!--\s*policy-contract:\s*([a-z0-9.-]+)\s*-->")
 MARKDOWN_HEADING = re.compile(r"^#{1,6}\s+(.+?)\s*$")
 
@@ -701,6 +805,78 @@ def evaluate_preference_resolution(inputs: dict[str, object]) -> dict[str, objec
     }
 
 
+def evaluate_routing_preset(inputs: dict[str, object]) -> dict[str, object]:
+    document = load_routing_presets()
+    provider_name = str(inputs.get("provider"))
+    profile_name = str(inputs.get("profile"))
+    role_name = str(inputs.get("role"))
+    providers = document["providers"]
+    require(provider_name in providers, f"unknown routing provider: {provider_name!r}")
+    provider = providers[provider_name]
+    require(profile_name in provider["profiles"], f"unknown routing profile: {profile_name!r}")
+    require(role_name in document["roles"], f"unknown routing role: {role_name!r}")
+    application = provider["application"]
+    base = {
+        "provider": provider_name,
+        "profile": profile_name,
+        "model_field": application["model_field"],
+        "effort_field": application["effort_field"],
+        "changes_delegation": False,
+        "changes_agent_count": False,
+        "changes_batching": False,
+    }
+    if inputs.get("delegation_approved") is not True:
+        return {
+            "apply_preset": False,
+            **base,
+            "role": role_name,
+            "model": None,
+            "effort": None,
+            "source": "not-approved",
+        }
+
+    role_map = provider["profiles"][profile_name]
+    selection = dict(role_map[role_name])
+    class_order = document["model_class_order"]
+    effort_order = document["effort_order"]
+    high_risk = inputs.get("high_risk") is True
+    if high_risk and class_order.index(selection["model_class"]) < class_order.index("general"):
+        role_name = "general-implementation"
+        selection = dict(role_map[role_name])
+    if high_risk and effort_order.index(selection["effort"]) < effort_order.index("high"):
+        selection["effort"] = "high"
+
+    source = "preset"
+    user_model = inputs.get("user_model")
+    user_effort = inputs.get("user_effort")
+    override_supported = (
+        inputs.get("user_override_supported") is True
+        and isinstance(user_model, str)
+        and isinstance(user_effort, str)
+        and user_effort in effort_order
+    )
+    user_model_class = str(inputs.get("user_model_class", selection["model_class"]))
+    if high_risk and user_model_class in class_order:
+        override_supported = (
+            override_supported
+            and class_order.index(user_model_class) >= class_order.index("general")
+            and effort_order.index(user_effort) >= effort_order.index("high")
+        )
+    if override_supported:
+        selection["model"] = user_model
+        selection["effort"] = user_effort
+        source = "user-override"
+
+    return {
+        "apply_preset": True,
+        **base,
+        "role": role_name,
+        "model": selection["model"],
+        "effort": selection["effort"],
+        "source": source,
+    }
+
+
 def evaluate_model_policy(inputs: dict[str, object]) -> dict[str, object]:
     action = inputs.get("action")
     if action == "fallback":
@@ -802,6 +978,7 @@ BEHAVIOR_EVALUATORS = {
     "audit-gate": evaluate_audit_gate,
     "mutation-boundary": evaluate_mutation_boundary,
     "preference-resolution": evaluate_preference_resolution,
+    "routing-preset": evaluate_routing_preset,
     "fork-override": evaluate_fork_override,
     "model-policy": evaluate_model_policy,
     "completion-gate": evaluate_completion_gate,
@@ -814,7 +991,7 @@ def reject_duplicate_json_pairs(pairs: list[tuple[str, object]]) -> dict[str, ob
     result: dict[str, object] = {}
     for key, value in pairs:
         if key in result:
-            raise ValidationError(f"duplicate JSON key in behavior cases: {key!r}")
+            raise ValidationError(f"duplicate JSON key in structured policy data: {key!r}")
         result[key] = value
     return result
 
@@ -934,6 +1111,7 @@ def main() -> int:
         validate_markdown_links,
         validate_no_placeholders,
         validate_no_sensitive_data,
+        validate_routing_presets,
         validate_behavior_cases,
     ]
     failures: list[str] = []

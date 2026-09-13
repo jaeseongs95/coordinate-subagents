@@ -7,6 +7,7 @@
     "delegation.independent-parallel": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Decide whether to delegate"},
     "delegation.allowed-exceptions": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Decide whether to delegate"},
     "preferences.ask-once": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Resolve the delegation preference"},
+    "preferences.no-allocation-effects": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Resolve the delegation preference"},
     "allocation.keep-one-and-fill-slots": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Assign work"},
     "allocation.batch-reuse": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Assign work"},
     "allocation.explicit-single-delegation-playbook": {"source": "skills/coordinate-subagents/references/delegation-playbook.md", "section": "Batch and synchronize"},
@@ -23,9 +24,14 @@
     "completion.current-evidence": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Complete the task"},
     "completion.report-facts": {"source": "skills/coordinate-subagents/SKILL.md", "section": "Complete the task"},
     "dispatch.inspect-and-recover": {"source": "skills/coordinate-subagents/references/delegation-playbook.md", "section": "Recover from dispatch problems"},
+    "routing.preset-does-not-delegate": {"source": "skills/coordinate-subagents/references/model-routing.md", "section": "Keep presets separate from delegation"},
+    "routing.user-override-precedence": {"source": "skills/coordinate-subagents/references/model-routing.md", "section": "Keep presets separate from delegation"},
+    "routing.role-provider-matrix": {"source": "skills/coordinate-subagents/references/model-routing.md", "section": "Map roles before providers"},
+    "routing.codex-adapter": {"source": "skills/coordinate-subagents/references/model-routing.md", "section": "Apply the OpenAI Codex adapter"},
+    "routing.claude-code-adapter": {"source": "skills/coordinate-subagents/references/model-routing.md", "section": "Apply the Anthropic Claude Code adapter"},
     "routing.settings-supported": {"source": "skills/coordinate-subagents/references/model-routing.md", "section": "Apply runtime constraints"},
-    "routing.luna-high-minimum": {"source": "skills/coordinate-subagents/references/model-routing.md", "section": "Apply runtime constraints"},
-    "routing.full-history-inherits": {"source": "skills/coordinate-subagents/references/model-routing.md", "section": "Apply runtime constraints"},
+    "routing.luna-high-minimum": {"source": "skills/coordinate-subagents/references/model-routing.md", "section": "Apply the OpenAI Codex adapter"},
+    "routing.full-history-inherits": {"source": "skills/coordinate-subagents/references/model-routing.md", "section": "Apply the OpenAI Codex adapter"},
     "routing.unsupported-fallback": {"source": "skills/coordinate-subagents/references/model-routing.md", "section": "Apply runtime constraints"},
     "routing.no-mechanical-retry": {"source": "skills/coordinate-subagents/references/model-routing.md", "section": "Diagnose before retrying"}
   },
@@ -85,6 +91,20 @@
         {"id": "default-after-unanswered-question", "input": {"supplied_preference": null, "material_effect": true, "host_can_ask": true, "already_asked": false, "response": null}, "expected": {"ask_optional_question": true, "profile": "balanced", "proceed_to_dispatch": true, "infer_subscription_plan": false, "waive_required_audit": false}},
         {"id": "do-not-repeat-question", "input": {"supplied_preference": null, "material_effect": true, "host_can_ask": true, "already_asked": true, "response": null}, "expected": {"ask_optional_question": false, "profile": "balanced", "proceed_to_dispatch": true, "infer_subscription_plan": false, "waive_required_audit": false}},
         {"id": "skip-immaterial-choice", "input": {"supplied_preference": null, "material_effect": false, "host_can_ask": true, "already_asked": false, "response": null}, "expected": {"ask_optional_question": false, "profile": "balanced", "proceed_to_dispatch": true, "infer_subscription_plan": false, "waive_required_audit": false}}
+      ]
+    },
+    {
+      "id": "provider-routing-presets",
+      "scenario": "Approved work receives a provider-specific model and effort without changing delegation, agent count, or batching.",
+      "contracts": ["preferences.no-allocation-effects", "routing.preset-does-not-delegate", "routing.user-override-precedence", "routing.role-provider-matrix", "routing.codex-adapter", "routing.claude-code-adapter"],
+      "rule": "routing-preset",
+      "vectors": [
+        {"id": "unapproved-quality-has-no-effect", "input": {"delegation_approved": false, "provider": "openai-codex", "profile": "quality", "role": "complex-reasoning", "high_risk": false}, "expected": {"apply_preset": false, "provider": "openai-codex", "profile": "quality", "role": "complex-reasoning", "model": null, "effort": null, "model_field": "model", "effort_field": "reasoning_effort", "source": "not-approved", "changes_delegation": false, "changes_agent_count": false, "changes_batching": false}},
+        {"id": "codex-balanced-general", "input": {"delegation_approved": true, "provider": "openai-codex", "profile": "balanced", "role": "general-implementation", "high_risk": false}, "expected": {"apply_preset": true, "provider": "openai-codex", "profile": "balanced", "role": "general-implementation", "model": "gpt-5.6-terra", "effort": "medium", "model_field": "model", "effort_field": "reasoning_effort", "source": "preset", "changes_delegation": false, "changes_agent_count": false, "changes_batching": false}},
+        {"id": "claude-economy-discovery", "input": {"delegation_approved": true, "provider": "anthropic-claude-code", "profile": "economy", "role": "discovery", "high_risk": false}, "expected": {"apply_preset": true, "provider": "anthropic-claude-code", "profile": "economy", "role": "discovery", "model": "haiku", "effort": "low", "model_field": "model", "effort_field": "effort", "source": "preset", "changes_delegation": false, "changes_agent_count": false, "changes_batching": false}},
+        {"id": "claude-quality-audit", "input": {"delegation_approved": true, "provider": "anthropic-claude-code", "profile": "quality", "role": "independent-audit", "high_risk": true}, "expected": {"apply_preset": true, "provider": "anthropic-claude-code", "profile": "quality", "role": "independent-audit", "model": "fable", "effort": "xhigh", "model_field": "model", "effort_field": "effort", "source": "preset", "changes_delegation": false, "changes_agent_count": false, "changes_batching": false}},
+        {"id": "high-risk-promotes-lightweight", "input": {"delegation_approved": true, "provider": "anthropic-claude-code", "profile": "economy", "role": "discovery", "high_risk": true}, "expected": {"apply_preset": true, "provider": "anthropic-claude-code", "profile": "economy", "role": "general-implementation", "model": "sonnet", "effort": "high", "model_field": "model", "effort_field": "effort", "source": "preset", "changes_delegation": false, "changes_agent_count": false, "changes_batching": false}},
+        {"id": "supported-user-override", "input": {"delegation_approved": true, "provider": "anthropic-claude-code", "profile": "balanced", "role": "general-implementation", "high_risk": false, "user_model": "opus", "user_effort": "max", "user_override_supported": true}, "expected": {"apply_preset": true, "provider": "anthropic-claude-code", "profile": "balanced", "role": "general-implementation", "model": "opus", "effort": "max", "model_field": "model", "effort_field": "effort", "source": "user-override", "changes_delegation": false, "changes_agent_count": false, "changes_batching": false}}
       ]
     },
     {

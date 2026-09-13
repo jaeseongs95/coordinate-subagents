@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-`coordinate-subagents`는 작업을 서브에이전트에게 맡길지 판단하고, 서로 독립적인 작업을 나누며, 공유 상태를 조정하는 Codex 스킬입니다. 위험도가 높은 변경에는 구현 담당자와 다른 검토자를 배정합니다.
+`coordinate-subagents`는 Codex와 Claude Code에서 작업을 서브에이전트에게 맡길지 판단하고, 서로 독립적인 작업을 나누며, 공유 상태를 조정하는 이식 가능한 스킬입니다. 위험도가 높은 변경에는 구현 담당자와 다른 검토자를 배정합니다.
 
 이 저장소는 처음부터 여러 스킬을 담을 수 있는 구조로 만들었습니다. 현재 배포 대상은 [`skills/coordinate-subagents`](skills/coordinate-subagents)에 있는 단일 스킬입니다. 나중에 전문 스킬과 오케스트레이터를 추가하더라도 모든 지침을 하나의 거대한 스킬로 합칠 필요가 없습니다.
 
@@ -15,11 +15,11 @@
 - 같은 파일이나 상태를 여러 에이전트가 다룰 때 쓰기 순서와 소유권을 조정합니다.
 - 보안, 권한, 결제, 데이터 손실, 마이그레이션, 배포, 전역 설정 변경에는 별도 검토자를 둡니다.
 - 최종 통합과 결과에 대한 책임은 조정 역할을 맡은 에이전트가 유지합니다.
-- Luna, Terra, Sol, Astra를 위한 선택형 모델 라우팅 프로필을 제공하되, 현재 호스트가 지원하는 모델과 추론 수준 안에서만 적용합니다.
+- `economy`, `balanced`, `quality` 프리셋을 제공하며, Codex와 Claude Code의 모델 체계에 맞춰 각각 매핑합니다.
 
-모델 라우팅 프로필은 관리자가 권장하는 기본값이며 필수 설정이 아닙니다. 사용자 지시, 저장소 규칙, 호스트 기능, 실행 제한이 우선합니다. 자세한 내용은 [`model-routing.md`](skills/coordinate-subagents/references/model-routing.md)를 참고하세요.
+프리셋은 위임이 승인된 뒤 모델과 추론 수준만 정합니다. 위임을 새로 시작하거나 서브에이전트 수와 배치 방식을 바꾸지는 않습니다. 사용자 지시, 저장소 규칙, 호스트 기능, 실행 제한이 우선합니다. 자세한 규칙은 [`model-routing.md`](skills/coordinate-subagents/references/model-routing.md), 기계 판독용 설정은 [`model-routing-presets.json`](skills/coordinate-subagents/references/model-routing-presets.json)에서 확인할 수 있습니다.
 
-## 설치
+## Codex에 설치
 
 내장 `$skill-installer`에 GitHub 폴더 URL을 전달합니다.
 
@@ -39,6 +39,10 @@ Codex는 새로 설치한 스킬을 보통 자동으로 감지합니다. 목록�
 
 이 스킬은 위 방법으로 단독 설치해 사용할 수 있습니다. 여러 거버넌스 스킬과 함께 구성하려면 이 스킬이 포함된 [Agent Governance Suite](https://github.com/jaeseongs95/agent-governance-suite)를 설치해 통합된 워크플로로 사용할 수도 있습니다.
 
+## Claude Code에 설치
+
+개인 스킬로 사용하려면 `skills/coordinate-subagents`를 `~/.claude/skills/coordinate-subagents`에 복사합니다. 프로젝트에서만 사용하려면 프로젝트 안의 `.claude/skills/coordinate-subagents`에 복사합니다. Claude Code는 해당 디렉터리의 `SKILL.md`와 참조 파일을 읽습니다. 자세한 설치 방식은 [Claude Code 공식 스킬 문서](https://code.claude.com/docs/en/skills)에서 확인할 수 있습니다.
+
 ## 사용법
 
 작업에 위임을 명시적으로 적용하려면 프롬프트에서 스킬을 호출합니다.
@@ -47,7 +51,7 @@ Codex는 새로 설치한 스킬을 보통 자동으로 감지합니다. 목록�
 $coordinate-subagents 이 작업을 독립 실행 단위로 나누고, 안전한 작업은 병렬로 진행한 뒤 검증된 결과를 통합해줘.
 ```
 
-자동 호출도 허용합니다. 요청이 병렬 위임, 쓰기 소유권 조정, 고위험 작업의 독립 검토와 분명히 맞으면 Codex가 이 스킬을 선택할 수 있습니다. 자동 선택 여부는 스킬 설명과 현재 호스트의 스킬 설정에 따라 달라집니다.
+자동 호출도 허용합니다. 요청이 병렬 위임, 쓰기 소유권 조정, 고위험 작업의 독립 검토와 분명히 맞으면 Codex나 Claude Code가 이 스킬을 선택할 수 있습니다. 자동 선택 여부는 스킬 설명과 현재 호스트의 스킬 설정에 따라 달라집니다.
 
 이 스킬을 설치하거나 호출해도 권한이 추가되거나 승인이 생략되지는 않습니다. 사용자가 요청한 작업 범위도 넓어지지 않으며, 사용할 수 없던 도구나 모델이 새로 활성화되지 않습니다. 모든 서브에이전트에는 사용자 지시, 저장소 규칙, 실행 모드, 샌드박스, 권한, 도구 접근 제한이 그대로 적용됩니다.
 
