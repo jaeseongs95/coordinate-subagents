@@ -3,7 +3,7 @@ name: coordinate-subagents
 description: Coordinate subagents in Codex and Claude Code by delegating only when the user requests it or a documented net-benefit check justifies it, assigning ownership, integrating evidence, and separating required high-risk audits. Do not activate solely because multiple work units exist, a task is complex, or orchestration is enabled.
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Coordinate Subagents

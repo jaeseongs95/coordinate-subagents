@@ -12,7 +12,7 @@ from urllib.parse import unquote
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SKILL_ROOT = REPO_ROOT / "skills" / "coordinate-subagents"
-EXPECTED_VERSION = "1.0.0"
+EXPECTED_VERSION = "1.1.0"
 OFFICIAL_FRONTMATTER_KEYS = {
     "name",
     "description",
